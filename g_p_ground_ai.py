@@ -19,9 +19,11 @@ if __name__ == '__main__':
 	
 	writer = SummaryWriter('.\\' + name + '_log')
 	
-	ground_net=net(0.1, 0.01).cuda()
+	ground_net=net(0.3, 0.1)
 
-	ground_net.load_state_dict(torch.load('F:\\场地保留\\asd00000065.pth'))
+	#ground_net.load_state_dict(torch.load('F:\\场地保留\\asd00000050.pth'))
+	
+	ground_net.cuda()
 
 	output_pipe=pipe('asd_out') 
 	input_pipe=pipe('asd_in') 
