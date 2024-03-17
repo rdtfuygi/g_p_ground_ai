@@ -5,34 +5,36 @@ import sys
 from pipe import pipe
 from torch.utils.tensorboard import SummaryWriter
 
+import random
 
 from neural import actor
 from neural import critic
 
-
+from collections import deque
 
 
 if __name__ == '__main__':
-	#print(sys.argv)
 
 	name = sys.argv[1]
 
-	#file = open(name + '_output.txt', 'w', encoding='utf-8')
 	
 	writer = SummaryWriter('.\\' + name + '_log')
 	
 	critic_net = critic(1e-3)
 	actor_net = actor(1, 1e-3)
 
-	#ground_net.load_state_dict(torch.load('F:\\场地保留\\asd00000012.pth'))
+	critic_net.load_state_dict(torch.load('F:\\场地保留\\critic_asd00000082.pth'))
+	actor_net.load_state_dict(torch.load('F:\\场地保留\\actor_asd00000082.pth'))
+
 	critic_net.cuda()
 	actor_net.cuda()
 
 	output_pipe = pipe('asd_out') 
 	input_pipe = pipe('asd_in') 
-	#action_pipe = pipe('asd_act')
 	callback_pipe = pipe('asd_back') 
 	G_pipe = pipe('asd_G')
+
+	exp_replay = deque(maxlen = 1024)
 
 	i = 0
 
@@ -44,13 +46,15 @@ if __name__ == '__main__':
 	
 		net_input = net_input_.clone()
 	
-		net_output = actor_net.explor(net_input).view(1,-1).tolist()[0]
+		net_output = actor_net.explor(net_input)
 
-		input_pipe.send(net_output);
-		
-		#_, action = action_pipe.recept();
+		net_output_ = net_output.view(1,-1).tolist()[0]
+
+		input_pipe.send(net_output_);
 	
 		_, callback_ = callback_pipe.recept();
+		
+		callback = torch.FloatTensor([callback_[0]]).cuda()
 		
 		_, G_ = G_pipe.recept();
 		
@@ -62,8 +66,15 @@ if __name__ == '__main__':
 			G_ = [0.0]
 			
 		if G_[0] == 0.0:
-			td_error = critic_net.learn(net_input, torch.FloatTensor([callback_[0]]).cuda(), net_input_)
-			loss = actor_net.learn(td_error)
+			exp_replay.append((net_input, callback, net_input_, net_output))
+			
+			batch = random.sample(exp_replay[:-1], min(len(exp_replay) - 1, 255))
+			batch.append(exp_replay[-1])
+			
+			net_input, callback, net_input_, action = zip(*batch)
+			
+			td_error = critic_net.learn(net_input, callback, net_input_)
+			loss = actor_net.learn(td_error, net_input, action)
 
 
 	
@@ -81,7 +92,9 @@ if __name__ == '__main__':
 
 		if (i % 2000) == 0:
 			for name_, param in actor_net.named_parameters():
-				writer.add_histogram('asd\\/' + name_, param, i)
+				writer.add_histogram('asd_actor\\/' + name_, param, i)
+			for name_, param in critic_net.named_parameters():
+				writer.add_histogram('asd_critic\\/' + name_, param, i)
 				
 		if (i % 2000) == 0:
 			

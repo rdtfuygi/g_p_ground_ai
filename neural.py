@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.cuda
-from collections import deque
-import random
+
+
 import math
 
 
@@ -20,12 +20,22 @@ class critic(nn.Module):
 		self.fc2 = nn.Linear(1024, 1024)
 		self.fc3 = nn.Linear(1024, 1024)
 		self.fc4 = nn.Linear(1024, 1024)
-		self.fc5 = nn.Linear(1024, 1)
+		self.fc5 = nn.Linear(1024, 1024)
+		self.fc6 = nn.Linear(1024, 1024)
+		self.fc7 = nn.Linear(1024, 1024)
+		self.fc8 = nn.Linear(1024, 1024)
+		self.fc9 = nn.Linear(1024, 1024)
+		self.fc10 = nn.Linear(1024, 1)
 		
 		self.ln1 = nn.LayerNorm(1024)
 		self.ln2 = nn.LayerNorm(1024)
 		self.ln3 = nn.LayerNorm(1024)
 		self.ln4 = nn.LayerNorm(1024)
+		self.ln5 = nn.LayerNorm(1024)
+		self.ln6 = nn.LayerNorm(1024)
+		self.ln7 = nn.LayerNorm(1024)
+		self.ln8 = nn.LayerNorm(1024)
+		self.ln9 = nn.LayerNorm(1024)
 		
 		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-8, weight_decay = 0.0000001)
 		
@@ -34,16 +44,22 @@ class critic(nn.Module):
 		x = leaky_relu(self.ln2.forward(self.fc2.forward(x)))
 		x = leaky_relu(self.ln3.forward(self.fc3.forward(x)))
 		x = leaky_relu(self.ln4.forward(self.fc4.forward(x)))
-		x = self.fc5.forward(x)
+		x = leaky_relu(self.ln5.forward(self.fc5.forward(x)))
+		x = leaky_relu(self.ln6.forward(self.fc6.forward(x)))
+		x = leaky_relu(self.ln7.forward(self.fc7.forward(x)))
+		x = leaky_relu(self.ln8.forward(self.fc8.forward(x)))
+		x = leaky_relu(self.ln9.forward(self.fc9.forward(x)))
+		x = self.fc10.forward(x)
 		return x
 	
 	def learn(self, s:torch.Tensor, r:torch.Tensor, s_new:torch.Tensor) -> torch.Tensor:
 		v = self.forward(s)
 		v_new = self.forward(s_new)
 		td_e = 0.99 * v_new + r - v
-		loss = torch.pow(td_e, 2)
+		loss = torch.mean(torch.square(td_e))
 		self.opt.zero_grad()
 		loss.backward()
+		torch.nn.utils.clip_grad_norm_(self.parameters(), 5)
 		self.opt.step()
 		return td_e.detach().clone()
 
@@ -146,12 +162,12 @@ class actor(nn.Module):
 		
 		self.way=[]
 
-		self.exp_replay = deque(maxlen = 2048)
+		#self.exp_replay = deque(maxlen = 2048)
 		self.state = torch.Tensor()
 		self.action = torch.Tensor()
 		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-8, weight_decay = 0.0000001)
 		
-		self.loss_bais = 0.91893853320467274178032973640562 + math.log(self.noise_std)
+		#self.loss_bais = 0.91893853320467274178032973640562 + math.log(self.noise_std)
 		#self.reward_bais = 0.0
 		#self.reward_l_bais = 0.0
 
@@ -215,20 +231,17 @@ class actor(nn.Module):
 
 		return self.action.detach().clone()
 
-	def learn(self, td_e:torch.Tensor) -> float:
-		
-		state = self.state
-		action = self.action
+	def learn(self, td_e:torch.Tensor,state:torch.Tensor, action:torch.Tensor) -> float:
 
-		# Ç°Ïò´«²¥
+		# Ç°ï¿½ò´«²ï¿½
 		self.train()
 		output = self.forward(state)
-		# ËðÊ§
+		# ï¿½ï¿½Ê§
 		action_probs = torch.distributions.Normal(output, self.noise_std).log_prob(action)
 
 		loss = -torch.mean(action_probs * td_e)
 		#loss = -torch.mean((action_probs + self.loss_bais) * (reward - self.reward_l_bais))
-		# ·´Ïò´«²¥
+		# ï¿½ï¿½ï¿½ò´«²ï¿½
 		self.opt.zero_grad()
 		loss.backward()
 		torch.nn.utils.clip_grad_norm_(self.parameters(), 5)
