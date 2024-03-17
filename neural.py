@@ -13,6 +13,40 @@ import math
 leaky_relu = nn.LeakyReLU(negative_slope=0.01)	
 
 
+class critic(nn.Module):
+	def __init__(self, lr:float = 0.01):
+		super(critic, self).__init__()
+		self.fc1 = nn.Linear(951, 1024)
+		self.fc2 = nn.Linear(1024, 1024)
+		self.fc3 = nn.Linear(1024, 1024)
+		self.fc4 = nn.Linear(1024, 1024)
+		self.fc5 = nn.Linear(1024, 1)
+		
+		self.ln1 = nn.LayerNorm(1024)
+		self.ln2 = nn.LayerNorm(1024)
+		self.ln3 = nn.LayerNorm(1024)
+		self.ln4 = nn.LayerNorm(1024)
+		
+		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-8, weight_decay = 0.0000001)
+		
+	def forward(self, x:torch.Tensor) -> torch.Tensor:
+		x = leaky_relu(self.ln1.forward(self.fc1.forward(x)))
+		x = leaky_relu(self.ln2.forward(self.fc2.forward(x)))
+		x = leaky_relu(self.ln3.forward(self.fc3.forward(x)))
+		x = leaky_relu(self.ln4.forward(self.fc4.forward(x)))
+		x = self.fc5.forward(x)
+		return x
+	
+	def learn(self, s:torch.Tensor, r:torch.Tensor, s_new:torch.Tensor) -> torch.Tensor:
+		v = self.forward(s)
+		v_new = self.forward(s_new)
+		td_e = 0.99 * v_new + r - v
+		loss = torch.pow(td_e, 2)
+		self.opt.zero_grad()
+		loss.backward()
+		self.opt.step()
+		return td_e.detach().clone()
+
 
 class actor(nn.Module):
 	def __init__(self, noise_std:float = 0.1, lr:float = 0.01):
@@ -63,48 +97,48 @@ class actor(nn.Module):
 		self.fc40 = nn.Linear(1024, 336)
 		
 
-		self.ln1 = nn.BatchNorm1d(1024)
-		self.ln2 = nn.BatchNorm1d(1024)
-		self.ln3 = nn.BatchNorm1d(1024)
-		self.ln4 = nn.BatchNorm1d(1024)
-		self.ln5 = nn.BatchNorm1d(1024)
-		self.ln6 = nn.BatchNorm1d(1024)
-		self.ln7 = nn.BatchNorm1d(1024)
-		self.ln8 = nn.BatchNorm1d(1024)
-		self.ln9 = nn.BatchNorm1d(1024)
+		self.ln1 = nn.LayerNorm(1024)
+		self.ln2 = nn.LayerNorm(1024)
+		self.ln3 = nn.LayerNorm(1024)
+		self.ln4 = nn.LayerNorm(1024)
+		self.ln5 = nn.LayerNorm(1024)
+		self.ln6 = nn.LayerNorm(1024)
+		self.ln7 = nn.LayerNorm(1024)
+		self.ln8 = nn.LayerNorm(1024)
+		self.ln9 = nn.LayerNorm(1024)
 		
-		self.ln10 = nn.BatchNorm1d(1024)
-		self.ln11 = nn.BatchNorm1d(1024)
-		self.ln12 = nn.BatchNorm1d(1024)
-		self.ln13 = nn.BatchNorm1d(1024)
-		self.ln14 = nn.BatchNorm1d(1024)
-		self.ln15 = nn.BatchNorm1d(1024)
-		self.ln16 = nn.BatchNorm1d(1024)
-		self.ln17 = nn.BatchNorm1d(1024)
-		self.ln18 = nn.BatchNorm1d(1024)
-		self.ln19 = nn.BatchNorm1d(1024)
+		self.ln10 = nn.LayerNorm(1024)
+		self.ln11 = nn.LayerNorm(1024)
+		self.ln12 = nn.LayerNorm(1024)
+		self.ln13 = nn.LayerNorm(1024)
+		self.ln14 = nn.LayerNorm(1024)
+		self.ln15 = nn.LayerNorm(1024)
+		self.ln16 = nn.LayerNorm(1024)
+		self.ln17 = nn.LayerNorm(1024)
+		self.ln18 = nn.LayerNorm(1024)
+		self.ln19 = nn.LayerNorm(1024)
 		
-		self.ln20 = nn.BatchNorm1d(1024)
-		self.ln21 = nn.BatchNorm1d(1024)
-		self.ln22 = nn.BatchNorm1d(1024)
-		self.ln23 = nn.BatchNorm1d(1024)
-		self.ln24 = nn.BatchNorm1d(1024)
-		self.ln25 = nn.BatchNorm1d(1024)
-		self.ln26 = nn.BatchNorm1d(1024)
-		self.ln27 = nn.BatchNorm1d(1024)
-		self.ln28 = nn.BatchNorm1d(1024)
-		self.ln29 = nn.BatchNorm1d(1024)
+		self.ln20 = nn.LayerNorm(1024)
+		self.ln21 = nn.LayerNorm(1024)
+		self.ln22 = nn.LayerNorm(1024)
+		self.ln23 = nn.LayerNorm(1024)
+		self.ln24 = nn.LayerNorm(1024)
+		self.ln25 = nn.LayerNorm(1024)
+		self.ln26 = nn.LayerNorm(1024)
+		self.ln27 = nn.LayerNorm(1024)
+		self.ln28 = nn.LayerNorm(1024)
+		self.ln29 = nn.LayerNorm(1024)
 		
-		self.ln30 = nn.BatchNorm1d(1024)
-		self.ln31 = nn.BatchNorm1d(1024)
-		self.ln32 = nn.BatchNorm1d(1024)
-		self.ln33 = nn.BatchNorm1d(1024)
-		self.ln34 = nn.BatchNorm1d(1024)
-		self.ln35 = nn.BatchNorm1d(1024)
-		self.ln36 = nn.BatchNorm1d(1024)
-		self.ln37 = nn.BatchNorm1d(1024)
-		self.ln38 = nn.BatchNorm1d(1024)
-		self.ln39 = nn.BatchNorm1d(1024)
+		self.ln30 = nn.LayerNorm(1024)
+		self.ln31 = nn.LayerNorm(1024)
+		self.ln32 = nn.LayerNorm(1024)
+		self.ln33 = nn.LayerNorm(1024)
+		self.ln34 = nn.LayerNorm(1024)
+		self.ln35 = nn.LayerNorm(1024)
+		self.ln36 = nn.LayerNorm(1024)
+		self.ln37 = nn.LayerNorm(1024)
+		self.ln38 = nn.LayerNorm(1024)
+		self.ln39 = nn.LayerNorm(1024)
 
 
 		self.noise_std = noise_std
@@ -115,7 +149,7 @@ class actor(nn.Module):
 		self.exp_replay = deque(maxlen = 2048)
 		self.state = torch.Tensor()
 		self.action = torch.Tensor()
-		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-5, weight_decay = 0.0000001)
+		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-8, weight_decay = 0.0000001)
 		
 		self.loss_bais = 0.91893853320467274178032973640562 + math.log(self.noise_std)
 		#self.reward_bais = 0.0
@@ -181,61 +215,22 @@ class actor(nn.Module):
 
 		return self.action.detach().clone()
 
-	def learn(self, callback:list, G:list):
-		self.way.append((self.state[0], self.action[0], callback[0]))
-		if G[0] != 0.0:
-			if len(self.way) == 1:
-				return 0.0
+	def learn(self, td_e:torch.Tensor) -> float:
+		
+		state = self.state
+		action = self.action
 
-			batch = random.sample(self.exp_replay, min(156, len(self.exp_replay)))
-			
-			g = G[0]
-			for i in range(len(self.way)):				
-				batch.append((self.way[-i - 1][0], self.way[-i - 1][1], g))
-				self.exp_replay.append((self.way[-i - 1][0], self.way[-i - 1][1], g))
-				g = self.way[-i - 1][2] + 0.99 * g
-				
-			self.way = []
+		# 前向传播
+		self.train()
+		output = self.forward(state)
+		# 损失
+		action_probs = torch.distributions.Normal(output, self.noise_std).log_prob(action)
 
-			state, action, reward = zip(*batch)
-				
-			state = torch.stack(state)
-			action = torch.stack(action).cuda()
-			reward = torch.FloatTensor(reward).view(-1, 1).cuda()
-			# 前向传播
-			self.train()
-			output = self.forward(state)
-			# 损失
-			action_probs = torch.distributions.Normal(output, self.noise_std).log_prob(action)
-
-			loss = -torch.mean(action_probs * (((reward - torch.mean(reward)) / torch.std(reward)).detach()))
-			#loss = -torch.mean((action_probs + self.loss_bais) * (reward - self.reward_l_bais))
-			# 反向传播
-			self.opt.zero_grad()
-			loss.backward()
-			torch.nn.utils.clip_grad_norm_(self.parameters(), 5)
-			self.opt.step()
-			return loss.item()
-		return 0.0
-
-		# if len(self.exp_replay) >= 512:
-		# 	batch = random.sample(self.exp_replay, 512)
-		# 	state, action, reward = zip(*batch)
-		#		
-		# 	state = torch.stack(state)
-		# 	action = torch.stack(action).cuda()
-		# 	reward = torch.FloatTensor(reward).view(-1, 1).cuda()
-		# 	# 前向传播
-		# 	self.train()
-		# 	output = self.forward(state)
-		# 	# 损失
-		# 	action_probs = torch.distributions.Normal(output, self.noise_std).log_prob(action)
-		#
-		# 	loss = -torch.mean((torch.clamp(action_probs + self.loss_bais, -1000, 0)) * ((reward - torch.mean(reward)).detach()))
-		# 	#loss = -torch.mean((action_probs + self.loss_bais) * (reward - self.reward_l_bais))
-		# 	# 反向传播
-		# 	self.opt.zero_grad()
-		# 	loss.backward()
-		# 	self.opt.step()
-		# 	return loss.item()
-		# return 0.0
+		loss = -torch.mean(action_probs * td_e)
+		#loss = -torch.mean((action_probs + self.loss_bais) * (reward - self.reward_l_bais))
+		# 反向传播
+		self.opt.zero_grad()
+		loss.backward()
+		torch.nn.utils.clip_grad_norm_(self.parameters(), 5)
+		self.opt.step()
+		return loss.item()
