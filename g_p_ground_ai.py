@@ -68,11 +68,11 @@ if __name__ == '__main__':
 		if G_[0] == 0.0:
 			exp_replay.append((net_input, callback, net_input_, net_output))
 			
-			batch = random.sample(exp_replay[:-1], min(len(exp_replay) - 1, 255))
+			batch = random.sample(exp_replay, min(len(exp_replay), 255))
 			batch.append(exp_replay[-1])
 			
 			net_input, callback, net_input_, action = zip(*batch)
-			
+
 			td_error = critic_net.learn(net_input, callback, net_input_)
 			loss = actor_net.learn(td_error, net_input, action)
 

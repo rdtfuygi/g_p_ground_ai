@@ -53,6 +53,7 @@ class critic(nn.Module):
 		return x
 	
 	def learn(self, s:torch.Tensor, r:torch.Tensor, s_new:torch.Tensor) -> torch.Tensor:
+		self.train()
 		v = self.forward(s)
 		v_new = self.forward(s_new)
 		td_e = 0.99 * v_new + r - v
@@ -233,15 +234,11 @@ class actor(nn.Module):
 
 	def learn(self, td_e:torch.Tensor,state:torch.Tensor, action:torch.Tensor) -> float:
 
-		# ǰ�򴫲�
 		self.train()
 		output = self.forward(state)
-		# ��ʧ
 		action_probs = torch.distributions.Normal(output, self.noise_std).log_prob(action)
-
 		loss = -torch.mean(action_probs * td_e)
 		#loss = -torch.mean((action_probs + self.loss_bais) * (reward - self.reward_l_bais))
-		# ���򴫲�
 		self.opt.zero_grad()
 		loss.backward()
 		torch.nn.utils.clip_grad_norm_(self.parameters(), 5)
