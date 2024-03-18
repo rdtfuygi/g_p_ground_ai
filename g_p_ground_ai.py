@@ -20,11 +20,11 @@ if __name__ == '__main__':
 	
 	writer = SummaryWriter('.\\' + name + '_log')
 	
-	critic_net = critic(1e-3)
+	critic_net = critic(1e-4)
 	actor_net = actor(1, 1e-3)
 
-	critic_net.load_state_dict(torch.load('F:\\场地保留\\critic_asd00000082.pth'))
-	actor_net.load_state_dict(torch.load('F:\\场地保留\\actor_asd00000082.pth'))
+	#critic_net.load_state_dict(torch.load('F:\\场地保留\\critic_asd00000082.pth'))
+	#actor_net.load_state_dict(torch.load('F:\\场地保留\\actor_asd00000082.pth'))
 
 	critic_net.cuda()
 	actor_net.cuda()
@@ -66,15 +66,22 @@ if __name__ == '__main__':
 			G_ = [0.0]
 			
 		if G_[0] == 0.0:
-			exp_replay.append((net_input, callback, net_input_, net_output))
+			exp_replay.append((net_input.view(1,-1).tolist()[0], callback.view(1,-1).tolist()[0], net_input_.view(1,-1).tolist()[0], net_output.view(1,-1).tolist()[0]))
 			
 			batch = random.sample(exp_replay, min(len(exp_replay), 255))
 			batch.append(exp_replay[-1])
 			
-			net_input, callback, net_input_, action = zip(*batch)
+			net_input, callback, net_input__, action = zip(*batch)
+			net_input = torch.Tensor(net_input).view(-1,951).cuda()
+			callback = torch.Tensor(callback).view(-1,1).cuda()
+			net_input__ = torch.Tensor(net_input__).view(-1,951).cuda()
+			action = torch.Tensor(action).view(-1,336).cuda()
 
-			td_error = critic_net.learn(net_input, callback, net_input_)
-			loss = actor_net.learn(td_error, net_input, action)
+			td_error = critic_net.learn(net_input, callback, net_input__)
+			if i > 200:
+				loss = actor_net.learn(td_error, net_input, action)
+			else:
+				loss = 0.0
 
 
 	
@@ -84,7 +91,7 @@ if __name__ == '__main__':
 			if(loss != 0.0):
 				writer.add_scalar('loss', loss, i)
 			writer.add_scalar('reward', callback_[0], i)
-			writer.add_scalar('td_error', td_error.item(), i)
+			writer.add_scalar('td_error', torch.mean(torch.square(td_error)).item(), i)
 			if G_[0] != 0.0:
 				writer.add_scalar('g', G_[0], i)
 			#writer.add_scalar('reward_b', ground_net.reward_bais, i)
