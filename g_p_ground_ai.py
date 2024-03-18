@@ -34,9 +34,14 @@ if __name__ == '__main__':
 	callback_pipe = pipe('asd_back') 
 	G_pipe = pipe('asd_G')
 
-	exp_replay = deque(maxlen = 1024)
+	exp_replay = deque(maxlen = 128)
 
 	i = 0
+	
+	for name_, param in actor_net.named_parameters():
+		writer.add_histogram('asd_actor\\/' + name_, param, i)
+	for name_, param in critic_net.named_parameters():
+		writer.add_histogram('asd_critic\\/' + name_, param, i)
 
 	_, output_ = output_pipe.recept()
 
@@ -68,7 +73,7 @@ if __name__ == '__main__':
 		if G_[0] == 0.0:
 			exp_replay.append((net_input.view(1,-1).tolist()[0], callback.view(1,-1).tolist()[0], net_input_.view(1,-1).tolist()[0], net_output.view(1,-1).tolist()[0]))
 			
-			batch = random.sample(exp_replay, min(len(exp_replay), 255))
+			batch = random.sample(exp_replay, min(len(exp_replay), 31))
 			batch.append(exp_replay[-1])
 			
 			net_input, callback, net_input__, action = zip(*batch)
@@ -78,10 +83,7 @@ if __name__ == '__main__':
 			action = torch.Tensor(action).view(-1,336).cuda()
 
 			td_error = critic_net.learn(net_input, callback, net_input__)
-			if i > 200:
-				loss = actor_net.learn(td_error, net_input, action)
-			else:
-				loss = 0.0
+			loss = actor_net.learn(td_error, net_input, action)
 
 
 	
@@ -91,19 +93,17 @@ if __name__ == '__main__':
 			if(loss != 0.0):
 				writer.add_scalar('loss', loss, i)
 			writer.add_scalar('reward', callback_[0], i)
-			writer.add_scalar('td_error', torch.mean(torch.square(td_error)).item(), i)
+			writer.add_scalar('td_error', torch.sum(torch.square(td_error)).item(), i)
 			if G_[0] != 0.0:
 				writer.add_scalar('g', G_[0], i)
-			#writer.add_scalar('reward_b', ground_net.reward_bais, i)
-			#writer.add_scalar('reward_l_b', ground_net.reward_l_bais, i)
 
-		if (i % 2000) == 0:
+		if (i % 2000) == 0 and i != 0:
 			for name_, param in actor_net.named_parameters():
 				writer.add_histogram('asd_actor\\/' + name_, param, i)
 			for name_, param in critic_net.named_parameters():
 				writer.add_histogram('asd_critic\\/' + name_, param, i)
 				
-		if (i % 2000) == 0:
+		if (i % 2000) == 0 and i != 0:
 			
 			num='{:08d}'.format(int(i / 1000))			
 

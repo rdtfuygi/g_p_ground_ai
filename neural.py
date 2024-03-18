@@ -57,7 +57,7 @@ class critic(nn.Module):
 		v = self.forward(s)
 		v_new = self.forward(s_new)
 		td_e = 0.99 * v_new + r - v
-		loss = torch.mean(torch.square(td_e))
+		loss = torch.sum(torch.square(td_e))
 		self.opt.zero_grad()
 		loss.backward()
 		torch.nn.utils.clip_grad_norm_(self.parameters(), 5)
@@ -164,8 +164,8 @@ class actor(nn.Module):
 		self.way=[]
 
 		#self.exp_replay = deque(maxlen = 2048)
-		self.state = torch.Tensor()
-		self.action = torch.Tensor()
+		#self.state = torch.Tensor()
+		#self.action = torch.Tensor()
 		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-8, weight_decay = 0.0000001)
 		
 		#self.loss_bais = 0.91893853320467274178032973640562 + math.log(self.noise_std)
@@ -222,22 +222,22 @@ class actor(nn.Module):
 	def explor(self, x:torch.Tensor) -> torch.Tensor:
 		with torch.no_grad():
 			self.eval()
-			self.state = x.detach().clone()
+			#self.state = x.detach().clone()
 			action = self.forward(x)
 			noise = torch.normal(mean = 0, std = self.noise_std, size = action.size()).cuda()
-			self.action = (action + noise).detach().clone()
+			#self.action = (action + noise).detach().clone()
 
 			self.action[:, 40::42] = (torch.rand(action[:, 40::42].size()).cuda() * self.var_range - 0.5 * self.var_range + action[:, 40::42]).round()
 			self.action[:, 41::42] = (torch.rand(action[:, 41::42].size()).cuda() * self.var_range - 0.5 * self.var_range + action[:, 41::42]).round()
 
 		return self.action.detach().clone()
-
+	
 	def learn(self, td_e:torch.Tensor,state:torch.Tensor, action:torch.Tensor) -> float:
 
 		self.train()
 		output = self.forward(state)
 		action_probs = torch.distributions.Normal(output, self.noise_std).log_prob(action)
-		loss = -torch.mean(action_probs * td_e)
+		loss = -torch.sum(action_probs * ((td_e - torch.mean(td_e)) / (torch.std(td_e) + 1e-3)))
 		#loss = -torch.mean((action_probs + self.loss_bais) * (reward - self.reward_l_bais))
 		self.opt.zero_grad()
 		loss.backward()
