@@ -12,62 +12,9 @@ import math
 
 leaky_relu = nn.LeakyReLU(negative_slope=0.01)	
 
-
-class critic(nn.Module):
-	def __init__(self, lr:float = 0.01):
-		super(critic, self).__init__()
-		self.fc1 = nn.Linear(951, 1024)
-		self.fc2 = nn.Linear(1024, 1024)
-		self.fc3 = nn.Linear(1024, 1024)
-		self.fc4 = nn.Linear(1024, 1024)
-		self.fc5 = nn.Linear(1024, 1024)
-		self.fc6 = nn.Linear(1024, 1024)
-		self.fc7 = nn.Linear(1024, 1024)
-		self.fc8 = nn.Linear(1024, 1024)
-		self.fc9 = nn.Linear(1024, 1024)
-		self.fc10 = nn.Linear(1024, 1)
-		
-		self.ln1 = nn.BatchNorm1d(1024)
-		self.ln2 = nn.BatchNorm1d(1024)
-		self.ln3 = nn.BatchNorm1d(1024)
-		self.ln4 = nn.BatchNorm1d(1024)
-		self.ln5 = nn.BatchNorm1d(1024)
-		self.ln6 = nn.BatchNorm1d(1024)
-		self.ln7 = nn.BatchNorm1d(1024)
-		self.ln8 = nn.BatchNorm1d(1024)
-		self.ln9 = nn.BatchNorm1d(1024)
-		
-		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-8, weight_decay = 0.0000001)
-		
-	def forward(self, x:torch.Tensor) -> torch.Tensor:
-		x = leaky_relu(self.ln1.forward(self.fc1.forward(x)))
-		x = leaky_relu(self.ln2.forward(self.fc2.forward(x)))
-		x = leaky_relu(self.ln3.forward(self.fc3.forward(x)))
-		x = leaky_relu(self.ln4.forward(self.fc4.forward(x)))
-		x = leaky_relu(self.ln5.forward(self.fc5.forward(x)))
-		x = leaky_relu(self.ln6.forward(self.fc6.forward(x)))
-		x = leaky_relu(self.ln7.forward(self.fc7.forward(x)))
-		x = leaky_relu(self.ln8.forward(self.fc8.forward(x)))
-		x = leaky_relu(self.ln9.forward(self.fc9.forward(x)))
-		x = self.fc10.forward(x)
-		return x
-	
-	def learn(self, s:torch.Tensor, r:torch.Tensor, s_new:torch.Tensor) -> torch.Tensor:
-		self.train()
-		v = self.forward(s)
-		v_new = self.forward(s_new)
-		td_e = 0.99 * v_new + r - v
-		loss = torch.sum(torch.square(td_e))
-		self.opt.zero_grad()
-		loss.backward()
-		torch.nn.utils.clip_grad_norm_(self.parameters(), 5)
-		self.opt.step()
-		return td_e.detach().clone()
-
-
-class actor(nn.Module):
-	def __init__(self, noise_std:float = 0.1, lr:float = 0.01):
-		super(actor, self).__init__()
+class share_net(nn.Module):
+	def __init__(self) -> None:
+		super(share_net, self).__init__()
 		self.fc1 = nn.Linear(951, 1024)
 		self.fc2 = nn.Linear(1024, 1024)
 		self.fc3 = nn.Linear(1024, 1024)
@@ -90,30 +37,7 @@ class actor(nn.Module):
 		self.fc19 = nn.Linear(1024, 1024)
 		
 		self.fc20 = nn.Linear(1024, 1024)
-		self.fc21 = nn.Linear(1024, 1024)
-		self.fc22 = nn.Linear(1024, 1024)
-		self.fc23 = nn.Linear(1024, 1024)
-		self.fc24 = nn.Linear(1024, 1024)
-		self.fc25 = nn.Linear(1024, 1024)
-		self.fc26 = nn.Linear(1024, 1024)
-		self.fc27 = nn.Linear(1024, 1024)
-		self.fc28 = nn.Linear(1024, 1024)
-		self.fc29 = nn.Linear(1024, 1024)
 		
-		self.fc30 = nn.Linear(1024, 1024)
-		self.fc31 = nn.Linear(1024, 1024)
-		self.fc32 = nn.Linear(1024, 1024)
-		self.fc33 = nn.Linear(1024, 1024)
-		self.fc34 = nn.Linear(1024, 1024)
-		self.fc35 = nn.Linear(1024, 1024)
-		self.fc36 = nn.Linear(1024, 1024)
-		self.fc37 = nn.Linear(1024, 1024)
-		self.fc38 = nn.Linear(1024, 1024)
-		self.fc39 = nn.Linear(1024, 1024)
-
-		self.fc40 = nn.Linear(1024, 336)
-		
-
 		self.ln1 = nn.BatchNorm1d(1024)
 		self.ln2 = nn.BatchNorm1d(1024)
 		self.ln3 = nn.BatchNorm1d(1024)
@@ -136,43 +60,9 @@ class actor(nn.Module):
 		self.ln19 = nn.BatchNorm1d(1024)
 		
 		self.ln20 = nn.BatchNorm1d(1024)
-		self.ln21 = nn.BatchNorm1d(1024)
-		self.ln22 = nn.BatchNorm1d(1024)
-		self.ln23 = nn.BatchNorm1d(1024)
-		self.ln24 = nn.BatchNorm1d(1024)
-		self.ln25 = nn.BatchNorm1d(1024)
-		self.ln26 = nn.BatchNorm1d(1024)
-		self.ln27 = nn.BatchNorm1d(1024)
-		self.ln28 = nn.BatchNorm1d(1024)
-		self.ln29 = nn.BatchNorm1d(1024)
 		
-		self.ln30 = nn.BatchNorm1d(1024)
-		self.ln31 = nn.BatchNorm1d(1024)
-		self.ln32 = nn.BatchNorm1d(1024)
-		self.ln33 = nn.BatchNorm1d(1024)
-		self.ln34 = nn.BatchNorm1d(1024)
-		self.ln35 = nn.BatchNorm1d(1024)
-		self.ln36 = nn.BatchNorm1d(1024)
-		self.ln37 = nn.BatchNorm1d(1024)
-		self.ln38 = nn.BatchNorm1d(1024)
-		self.ln39 = nn.BatchNorm1d(1024)
 
-
-		self.noise_std = noise_std
-		self.var_range = math.sqrt(noise_std * 12)
-		
-		self.way=[]
-
-		#self.exp_replay = deque(maxlen = 2048)
-		#self.state = torch.Tensor()
-		#self.action = torch.Tensor()
-		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-8, weight_decay = 0.0000001)
-		
-		#self.loss_bais = 0.91893853320467274178032973640562 + math.log(self.noise_std)
-		#self.reward_bais = 0.0
-		#self.reward_l_bais = 0.0
-
-	def forward(self, x:torch.Tensor) -> torch.Tensor:
+	def forward(self, x:torch.Tensor) ->torch.Tensor:
 		x = leaky_relu(self.ln1.forward(self.fc1.forward(x)))
 		x = leaky_relu(self.ln2.forward(self.fc2.forward(x) + x))
 		x = leaky_relu(self.ln3.forward(self.fc3.forward(x) + x))
@@ -195,6 +85,123 @@ class actor(nn.Module):
 		x = leaky_relu(self.ln19.forward(self.fc19.forward(x) + x))
 		
 		x = leaky_relu(self.ln20.forward(self.fc20.forward(x) + x))
+		return x
+
+
+
+class critic(nn.Module):
+	def __init__(self, share:share_net, lr:float = 0.01):
+		super(critic, self).__init__()
+		self.share = share
+		self.fc21 = nn.Linear(1024, 1024)
+		self.fc22 = nn.Linear(1024, 1024)
+		self.fc23 = nn.Linear(1024, 1024)
+		self.fc24 = nn.Linear(1024, 1024)
+		self.fc25 = nn.Linear(1024, 1)
+		
+		self.ln21 = nn.BatchNorm1d(1024)
+		self.ln22 = nn.BatchNorm1d(1024)
+		self.ln23 = nn.BatchNorm1d(1024)
+		self.ln24 = nn.BatchNorm1d(1024)
+		
+		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-8, weight_decay = 0.0000001)
+		
+
+	def forward(self, x:torch.Tensor) -> torch.Tensor:
+		x = self.share.forward(x)
+		x = leaky_relu(self.ln21.forward(self.fc21.forward(x) + x))
+		x = leaky_relu(self.ln22.forward(self.fc22.forward(x) + x))
+		x = leaky_relu(self.ln23.forward(self.fc23.forward(x) + x))
+		x = leaky_relu(self.ln24.forward(self.fc24.forward(x) + x))
+		x = self.fc25.forward(x)
+		return x
+	
+
+	def learn(self, s:torch.Tensor, r:torch.Tensor, s_new:torch.Tensor) -> torch.Tensor:
+		self.train()
+		v = self.forward(s)
+		v_new = self.forward(s_new)
+		td_e = 0.99 * v_new + r - v
+		loss = torch.mean(torch.square(td_e))
+		self.opt.zero_grad()
+		loss.backward()
+		torch.nn.utils.clip_grad_norm_(self.parameters(), 5)
+		self.opt.step()
+		return td_e.detach()
+
+
+class actor(nn.Module):
+	def __init__(self, share:share_net, noise_std:float = 0.1, lr:float = 0.01):
+		super(actor, self).__init__()
+		
+		self.share = share
+
+
+		self.fc21 = nn.Linear(1024, 1024)
+		self.fc22 = nn.Linear(1024, 1024)
+		self.fc23 = nn.Linear(1024, 1024)
+		self.fc24 = nn.Linear(1024, 1024)
+		self.fc25 = nn.Linear(1024, 1024)
+		self.fc26 = nn.Linear(1024, 1024)
+		self.fc27 = nn.Linear(1024, 1024)
+		self.fc28 = nn.Linear(1024, 1024)
+		self.fc29 = nn.Linear(1024, 1024)
+		
+		# self.fc30 = nn.Linear(1024, 1024)
+		# self.fc31 = nn.Linear(1024, 1024)
+		# self.fc32 = nn.Linear(1024, 1024)
+		# self.fc33 = nn.Linear(1024, 1024)
+		# self.fc34 = nn.Linear(1024, 1024)
+		# self.fc35 = nn.Linear(1024, 1024)
+		# self.fc36 = nn.Linear(1024, 1024)
+		# self.fc37 = nn.Linear(1024, 1024)
+		# self.fc38 = nn.Linear(1024, 1024)
+		# self.fc39 = nn.Linear(1024, 1024)
+
+		self.fc40 = nn.Linear(1024, 336)
+		
+
+
+		self.ln21 = nn.BatchNorm1d(1024)
+		self.ln22 = nn.BatchNorm1d(1024)
+		self.ln23 = nn.BatchNorm1d(1024)
+		self.ln24 = nn.BatchNorm1d(1024)
+		self.ln25 = nn.BatchNorm1d(1024)
+		self.ln26 = nn.BatchNorm1d(1024)
+		self.ln27 = nn.BatchNorm1d(1024)
+		self.ln28 = nn.BatchNorm1d(1024)
+		self.ln29 = nn.BatchNorm1d(1024)
+		
+		# self.ln30 = nn.BatchNorm1d(1024)
+		# self.ln31 = nn.BatchNorm1d(1024)
+		# self.ln32 = nn.BatchNorm1d(1024)
+		# self.ln33 = nn.BatchNorm1d(1024)
+		# self.ln34 = nn.BatchNorm1d(1024)
+		# self.ln35 = nn.BatchNorm1d(1024)
+		# self.ln36 = nn.BatchNorm1d(1024)
+		# self.ln37 = nn.BatchNorm1d(1024)
+		# self.ln38 = nn.BatchNorm1d(1024)
+		# self.ln39 = nn.BatchNorm1d(1024)
+
+
+		self.noise_std = noise_std
+		self.var_range = math.sqrt(noise_std * 12)
+		
+		self.way=[]
+
+		#self.exp_replay = deque(maxlen = 2048)
+		self.state = torch.Tensor()
+		self.action = torch.Tensor()
+		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-8, weight_decay = 0.0000001)
+		
+		self.loss_bais = 0.91893853320467274178032973640562 + math.log(self.noise_std)
+		#self.reward_bais = 0.0
+		#self.reward_l_bais = 0.0
+	
+
+	def forward(self, x:torch.Tensor) -> torch.Tensor:
+		x = self.share.forward(x)
+		
 		x = leaky_relu(self.ln21.forward(self.fc21.forward(x) + x))
 		x = leaky_relu(self.ln22.forward(self.fc22.forward(x) + x))
 		x = leaky_relu(self.ln23.forward(self.fc23.forward(x) + x))
@@ -205,39 +212,44 @@ class actor(nn.Module):
 		x = leaky_relu(self.ln28.forward(self.fc28.forward(x) + x))
 		x = leaky_relu(self.ln29.forward(self.fc29.forward(x) + x))
 		
-		x = leaky_relu(self.ln30.forward(self.fc30.forward(x) + x))
-		x = leaky_relu(self.ln31.forward(self.fc31.forward(x) + x))
-		x = leaky_relu(self.ln32.forward(self.fc32.forward(x) + x))
-		x = leaky_relu(self.ln33.forward(self.fc33.forward(x) + x))
-		x = leaky_relu(self.ln34.forward(self.fc34.forward(x) + x))
-		x = leaky_relu(self.ln35.forward(self.fc35.forward(x) + x))
-		x = leaky_relu(self.ln36.forward(self.fc36.forward(x) + x))
-		x = leaky_relu(self.ln37.forward(self.fc37.forward(x) + x))
-		x = leaky_relu(self.ln38.forward(self.fc38.forward(x) + x))
-		x = leaky_relu(self.ln39.forward(self.fc39.forward(x) + x))
-		
-		x = self.fc40.forward(x) / 1024 * 5
-		return x
+		# x = leaky_relu(self.ln30.forward(self.fc30.forward(x) + x))
+		# x = leaky_relu(self.ln31.forward(self.fc31.forward(x) + x))
+		# x = leaky_relu(self.ln32.forward(self.fc32.forward(x) + x))
+		# x = leaky_relu(self.ln33.forward(self.fc33.forward(x) + x))
+		# x = leaky_relu(self.ln34.forward(self.fc34.forward(x) + x))
+		# x = leaky_relu(self.ln35.forward(self.fc35.forward(x) + x))
+		# x = leaky_relu(self.ln36.forward(self.fc36.forward(x) + x))
+		# x = leaky_relu(self.ln37.forward(self.fc37.forward(x) + x))
+		# x = leaky_relu(self.ln38.forward(self.fc38.forward(x) + x))
+		# x = leaky_relu(self.ln39.forward(self.fc39.forward(x) + x))
+
+		x = self.fc40.forward(x)
+		x_ = torch.tanh(x / 1024) * 5
+		x_[:, 40::42] = x[:, 40::42]
+		x_[:, 41::42] = x[:, 41::42]
+		return x_
+	
 
 	def explor(self, x:torch.Tensor) -> torch.Tensor:
 		with torch.no_grad():
 			self.eval()
-			#self.state = x.detach().clone()
+			self.state = x.detach().clone()
 			action = self.forward(x)
 			noise = torch.normal(mean = 0, std = self.noise_std, size = action.size()).cuda()
-			#self.action = (action + noise).detach().clone()
+			self.action = (action + noise).detach().clone()
 
 			self.action[:, 40::42] = (torch.rand(action[:, 40::42].size()).cuda() * self.var_range - 0.5 * self.var_range + action[:, 40::42]).round()
 			self.action[:, 41::42] = (torch.rand(action[:, 41::42].size()).cuda() * self.var_range - 0.5 * self.var_range + action[:, 41::42]).round()
 
 		return self.action.detach().clone()
 	
+
 	def learn(self, td_e:torch.Tensor,state:torch.Tensor, action:torch.Tensor) -> float:
 
 		self.train()
 		output = self.forward(state)
 		action_probs = torch.distributions.Normal(output, self.noise_std).log_prob(action)
-		loss = -torch.sum(action_probs * ((td_e - torch.mean(td_e)) / (torch.std(td_e) + 1e-3)))
+		loss = -torch.mean((action_probs - self.loss_bais) * ((td_e - torch.mean(td_e)) / torch.std(td_e)))
 		#loss = -torch.mean((action_probs + self.loss_bais) * (reward - self.reward_l_bais))
 		self.opt.zero_grad()
 		loss.backward()
