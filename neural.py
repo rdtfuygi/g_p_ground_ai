@@ -2,6 +2,7 @@ from pickletools import floatnl
 from turtle import forward
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import torch.cuda
 
@@ -118,7 +119,7 @@ class critic(nn.Module):
 	
 
 	def learn(self, s:torch.Tensor, r:torch.Tensor, s_new:torch.Tensor) -> torch.Tensor:
-		self.train()
+		#self.train()
 		v = self.forward(s)
 		v_new = self.forward(s_new)
 		td_e = 0.99 * v_new + r - v
@@ -187,11 +188,11 @@ class actor(nn.Module):
 		self.noise_std = noise_std
 		self.var_range = math.sqrt(noise_std * 12)
 		
-		self.way=[]
+		#self.way=[]
 
 		#self.exp_replay = deque(maxlen = 2048)
-		self.state = torch.Tensor()
-		self.action = torch.Tensor()
+		# self.state = torch.Tensor()
+		# self.action = torch.Tensor()
 		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-8, weight_decay = 0.0000001)
 		
 		self.loss_bais = 0.91893853320467274178032973640562 + math.log(self.noise_std)
@@ -233,24 +234,25 @@ class actor(nn.Module):
 	def explor(self, x:torch.Tensor) -> torch.Tensor:
 		with torch.no_grad():
 			self.eval()
-			self.state = x.detach().clone()
+			#self.state = x.detach().clone()
 			action = self.forward(x)
 			noise = torch.normal(mean = 0, std = self.noise_std, size = action.size()).cuda()
-			self.action = (action + noise).detach().clone()
+			
+			action_ = (action + noise)
 
-			self.action[:, 40::42] = (torch.rand(action[:, 40::42].size()).cuda() * self.var_range - 0.5 * self.var_range + action[:, 40::42]).round()
-			self.action[:, 41::42] = (torch.rand(action[:, 41::42].size()).cuda() * self.var_range - 0.5 * self.var_range + action[:, 41::42]).round()
+			action_[:, 40::42] = (torch.rand(action[:, 40::42].size()).cuda() * self.var_range - 0.5 * self.var_range + action[:, 40::42]).round()
+			action_[:, 41::42] = (torch.rand(action[:, 41::42].size()).cuda() * self.var_range - 0.5 * self.var_range + action[:, 41::42]).round()
 
-		return self.action.detach().clone()
+		return action_.detach()
 	
 
-	def learn(self, td_e:torch.Tensor,state:torch.Tensor, action:torch.Tensor) -> float:
+	def learn(self, td_e:torch.Tensor, state:torch.Tensor, action:torch.Tensor) -> float:
 
 		self.train()
 		output = self.forward(state)
 		action_probs = torch.distributions.Normal(output, self.noise_std).log_prob(action)
-		loss = -torch.mean((action_probs - self.loss_bais) * ((td_e - torch.mean(td_e)) / torch.std(td_e)))
-		#loss = -torch.mean((action_probs + self.loss_bais) * (reward - self.reward_l_bais))
+		loss = -torch.mean(action_probs * (F.normalize((td_e - (torch.mean(td_e).detach())).detach(), dim = 0).detach()))
+
 		self.opt.zero_grad()
 		loss.backward()
 		torch.nn.utils.clip_grad_norm_(self.parameters(), 5)

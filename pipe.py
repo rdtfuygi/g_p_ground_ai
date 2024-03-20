@@ -39,7 +39,7 @@ class pipe:
 		data = struct.unpack('d'*int(len(data_buffer)/8), data_buffer)
 		succeed = False
 		if(data[-1] == (len(data) - 1)):
-			succeed=True
+			succeed = True
 		return [succeed, data[:-1]]
 	
 	def send(self,data:list):
