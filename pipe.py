@@ -36,7 +36,7 @@ class pipe:
 			_,data_num,_ = win32pipe.PeekNamedPipe(self.pip, 0)
 			
 		_,data_buffer = win32file.ReadFile(self.pip,data_num)
-		data = struct.unpack('d'*int(len(data_buffer)/8), data_buffer)
+		data = struct.unpack('f' * int(len(data_buffer) / 8), data_buffer)
 		succeed = False
 		if(data[-1] == (len(data) - 1)):
 			succeed = True
@@ -49,7 +49,7 @@ class pipe:
 			#time.sleep(1)
 			_,data_num,_ = win32pipe.PeekNamedPipe(self.pip, 0)
 
-		data_buffer = struct.pack('d'*len(data), *data)
+		data_buffer = struct.pack('f' * len(data), *data)
 		win32file.WriteFile(self.pip,data_buffer)
 		return
 		
