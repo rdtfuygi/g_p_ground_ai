@@ -13,7 +13,7 @@ from neural import share_net
 
 from collections import deque
 
-from torch.cuda.amp import autocast
+
 
 
 if __name__ == '__main__':
@@ -35,7 +35,7 @@ if __name__ == '__main__':
 	# 	'critic_opt':critic_net.opt.state_dict()
 	# 	},'f:\\场地\\' + name + num + '.pth')
 
-	cp = torch.load('f:\\场地保留\\asd00000068.pth')
+	cp = torch.load('f:\\场地保留\\asd00000030.pth')
 	share.load_state_dict(cp['share'])
 	actor_net.load_state_dict(cp['actor'])
 	critic_net.load_state_dict(cp['critic'])
@@ -79,6 +79,7 @@ if __name__ == '__main__':
 		net_input = net_input_.clone()
 		
 		net_output = actor_net.explor(net_input)
+			
 
 		net_output_ = net_output.view(1,-1).tolist()[0]
 

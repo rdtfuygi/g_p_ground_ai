@@ -225,7 +225,7 @@ class actor(nn.Module):
 		# x = leaky_relu(self.ln39.forward(self.fc39.forward(x) + x))
 
 		x = self.fc40.forward(x)
-		x_ = torch.tanh(x / 1024) * 5
+		x_ = torch.tanh(x / 1024) * 10
 		x_[:, 40::42] = x[:, 40::42]
 		x_[:, 41::42] = x[:, 41::42]
 		return x_
