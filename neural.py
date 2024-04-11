@@ -12,10 +12,10 @@ import torch.cuda
 import math
 
 
-leaky_relu = nn.LeakyReLU(negative_slope=0.01)	
+leaky_relu = nn.LeakyReLU(negative_slope=0.01)
 
 class share_net(nn.Module):
-	def __init__(self) -> None:
+	def __init__(self, lr = 0.01) -> None:
 		super(share_net, self).__init__()
 		#l1
 		#2点
@@ -52,6 +52,7 @@ class share_net(nn.Module):
 		self.l1k8fc3 = nn.Linear(16, 1)
 		
 		#l2
+		self.l2_bn = nn.BatchNorm1d(8, eps = 1e-5)
 		#2线段
 		self.l2k1fc1 = nn.Linear(18, 32)
 		self.l2k1fc2 = nn.Linear(32, 32)
@@ -64,17 +65,21 @@ class share_net(nn.Module):
 		self.l2k2fc4 = nn.Linear(32, 1)
 		
 		#l3
-		self.l3k1fc1 = nn.Linear(306, 512)
-		self.l3k1fc2 = nn.Linear(512, 512)
-		self.l3k1fc3 = nn.Linear(512, 512)
-		self.l3k1fc4 = nn.Linear(512, 512)
-		self.l3k1fc5 = nn.Linear(512, 512)
-		self.l3k1fc6 = nn.Linear(512, 512)
-		self.l3k1fc7 = nn.Linear(512, 512)
-		self.l3k1fc8 = nn.Linear(512, 1)
+		self.l3_bn = nn.BatchNorm1d(10, eps = 1e-5)
+
+		self.l3k1fc1 = nn.Linear(306, 276)
+		self.l3k1fc2 = nn.Linear(276, 215)
+		self.l3k1fc3 = nn.Linear(215, 185)
+		self.l3k1fc4 = nn.Linear(185, 123)
+		self.l3k1fc5 = nn.Linear(123, 93)
+		self.l3k1fc6 = nn.Linear(93, 62)
+		self.l3k1fc7 = nn.Linear(62, 32)
+		self.l3k1fc8 = nn.Linear(32, 1)
 		
 		#l4
-		self.l4fc1 = nn.Linear(2763, 2691)
+		self.l4resfc = nn.Linear(2764, 2048)
+  
+		self.l4fc1 = nn.Linear(2764, 2691)
 		self.l4fc2 = nn.Linear(2691, 2620)
 		self.l4fc3 = nn.Linear(2620, 2548)
 		self.l4fc4 = nn.Linear(2548, 2477)
@@ -96,99 +101,101 @@ class share_net(nn.Module):
 		self.l4ln9 = nn.LayerNorm(2119, 1e-5)
 		self.l4ln10 = nn.LayerNorm(2048, 1e-5)
 		
+		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-5, weight_decay = 1e-5)
 	
 	def forward(self, x:torch.Tensor) ->torch.Tensor:
 		#with autocast(dtype = torch.float16):
-			
-			x = x.reshape(-1, 106)
+			x_s = x[:,-1].clone().view(-1, 1)
+			x = x[:,:-1].reshape(-1, 106)
 		
 			x_ = torch.cat((x[:,95:100], x[:,0:100], x[:,0:5]), dim = 1)
 			
 			l1k1x = torch.cat((x_[:,5:105:5], x_[:,6:105:5], x_[:,10::5], x_[:,11::5]), dim = 1).view(-1, 4)
-			l1k1x = torch.tanh(self.l1k1fc1.forward(l1k1x))
-			l1k1x = torch.tanh(self.l1k1fc2.forward(l1k1x))
-			l1k1x = torch.tanh(self.l1k1fc3.forward(l1k1x))
+			l1k1x = leaky_relu(self.l1k1fc1.forward(l1k1x))
+			l1k1x = leaky_relu(self.l1k1fc2.forward(l1k1x))
+			l1k1x = leaky_relu(self.l1k1fc3.forward(l1k1x))
 			
 			l1k2x = torch.cat((x_[:,0:100:5], x_[:,1:100:5], x_[:,5:105:5], x_[:,6:105:5], x_[:,10::5], x_[:,11::5]), dim = 1).view(-1, 6)
-			l1k2x = torch.tanh(self.l1k2fc1.forward(l1k2x))
-			l1k2x = torch.tanh(self.l1k2fc2.forward(l1k2x))
-			l1k2x = torch.tanh(self.l1k2fc3.forward(l1k2x))
+			l1k2x = leaky_relu(self.l1k2fc1.forward(l1k2x))
+			l1k2x = leaky_relu(self.l1k2fc2.forward(l1k2x))
+			l1k2x = leaky_relu(self.l1k2fc3.forward(l1k2x))
 			
 			l1k3x = torch.cat((x_[:,7:105:5], x_[:,8:105:5], x_[:,12::5], x_[:,13::5]), dim = 1).view(-1, 4)
-			l1k3x = torch.tanh(self.l1k3fc1.forward(l1k3x))
-			l1k3x = torch.tanh(self.l1k3fc2.forward(l1k3x))
-			l1k3x = torch.tanh(self.l1k3fc3.forward(l1k3x))
+			l1k3x = leaky_relu(self.l1k3fc1.forward(l1k3x))
+			l1k3x = leaky_relu(self.l1k3fc2.forward(l1k3x))
+			l1k3x = leaky_relu(self.l1k3fc3.forward(l1k3x))
 			
 			l1k4x = torch.cat((x_[:,2:100:5], x_[:,3:100:5], x_[:,7:105:5], x_[:,8:105:5], x_[:,12::5], x_[:,13::5]), dim = 1).view(-1, 6)
-			l1k4x = torch.tanh(self.l1k4fc1.forward(l1k4x))
-			l1k4x = torch.tanh(self.l1k4fc2.forward(l1k4x))
-			l1k4x = torch.tanh(self.l1k4fc3.forward(l1k4x))
+			l1k4x = leaky_relu(self.l1k4fc1.forward(l1k4x))
+			l1k4x = leaky_relu(self.l1k4fc2.forward(l1k4x))
+			l1k4x = leaky_relu(self.l1k4fc3.forward(l1k4x))
 			
 			l1k5x = torch.cat((x_[:,9:105:5], x_[:,14::5]), dim = 1).view(-1, 2)
-			l1k5x = torch.tanh(self.l1k5fc1.forward(l1k5x))
-			l1k5x = torch.tanh(self.l1k5fc2.forward(l1k5x))
-			l1k5x = torch.tanh(self.l1k5fc3.forward(l1k5x))
+			l1k5x = leaky_relu(self.l1k5fc1.forward(l1k5x))
+			l1k5x = leaky_relu(self.l1k5fc2.forward(l1k5x))
+			l1k5x = leaky_relu(self.l1k5fc3.forward(l1k5x))
 			
 			l1k6x = torch.cat((x_[:,4:100:5], x_[:,9:105:5], x_[:,14::5]), dim = 1).view(-1, 3)
-			l1k6x = torch.tanh(self.l1k6fc1.forward(l1k6x))
-			l1k6x = torch.tanh(self.l1k6fc2.forward(l1k6x))
-			l1k6x = torch.tanh(self.l1k6fc3.forward(l1k6x))
+			l1k6x = leaky_relu(self.l1k6fc1.forward(l1k6x))
+			l1k6x = leaky_relu(self.l1k6fc2.forward(l1k6x))
+			l1k6x = leaky_relu(self.l1k6fc3.forward(l1k6x))
 			
 			l1k7x = torch.cat((x_[:,5:105:5], x_[:,6:105:5], x_[:,7:105:5], x_[:,8:105:5], x_[:,9:105:5], x_[:,10::5], x_[:,11::5], x_[:,12::5], x_[:,13::5], x_[:,14::5]), dim = 1).view(-1, 10)
-			l1k7x = torch.tanh(self.l1k7fc1.forward(l1k7x))
-			l1k7x = torch.tanh(self.l1k7fc2.forward(l1k7x))
-			l1k7x = torch.tanh(self.l1k7fc3.forward(l1k7x))
+			l1k7x = leaky_relu(self.l1k7fc1.forward(l1k7x))
+			l1k7x = leaky_relu(self.l1k7fc2.forward(l1k7x))
+			l1k7x = leaky_relu(self.l1k7fc3.forward(l1k7x))
 			
 			l1k8x = torch.cat((x_[:,0:100:5], x_[:,1:100:5], x_[:,2:100:5], x_[:,3:100:5], x_[:,4:100:5], x_[:,5:105:5], x_[:,6:105:5], x_[:,7:105:5], x_[:,8:105:5], x_[:,9:105:5], x_[:,10::5], x_[:,11::5], x_[:,12::5], x_[:,13::5], x_[:,14::5]), dim = 1).view(-1, 15)
-			l1k8x = torch.tanh(self.l1k8fc1.forward(l1k8x))
-			l1k8x = torch.tanh(self.l1k8fc2.forward(l1k8x))
-			l1k8x = torch.tanh(self.l1k8fc3.forward(l1k8x))
+			l1k8x = leaky_relu(self.l1k8fc1.forward(l1k8x))
+			l1k8x = leaky_relu(self.l1k8fc2.forward(l1k8x))
+			l1k8x = leaky_relu(self.l1k8fc3.forward(l1k8x))
 			
 						
 			x_ = x[:,0:100].reshape(-1,5)
-			x_ = torch.cat((x_, l1k1x, l1k3x, l1k5x, l1k7x, l1k2x, l1k4x, l1k6x, l1k8x), dim = 1)
+			x_ = torch.cat((x_, self.l2_bn.forward(torch.cat((l1k1x, l1k3x, l1k5x, l1k7x, l1k2x, l1k4x, l1k6x, l1k8x), dim = 1))), dim = 1)
 			x_ = x_.view(-1, 260)
-			x_ = torch.cat((x_[:,247:260], x_, x_[:,0:13]), dim = 1)	
+			x_ = torch.cat((x_[:,247:260], x_, x_[:,0:13]), dim = 1)
 
 			l2k1x = torch.cat((x_[:,13:273:13], x_[:,14:273:13], x_[:,15:273:13], x_[:,16:273:13], x_[:,17:273:13], x_[:,22:273:13], x_[:,23:273:13], x_[:,24:273:13], x_[:,25:273:13], x_[:,26::13], x_[:,27::13], x_[:,28::13], x_[:,29::13], x_[:,30::13], x_[:,35::13], x_[:,36::13], x_[:,37::13], x_[:,38::13]), dim = 1)
 			l2k1x = l2k1x.view(-1, 18)
-			l2k1x = torch.tanh(self.l2k1fc1.forward(l2k1x))
-			l2k1x = torch.tanh(self.l2k1fc2.forward(l2k1x))
-			l2k1x = torch.tanh(self.l2k1fc3.forward(l2k1x))
-			l2k1x = torch.tanh(self.l2k1fc4.forward(l2k1x))
+			l2k1x = leaky_relu(self.l2k1fc1.forward(l2k1x))
+			l2k1x = leaky_relu(self.l2k1fc2.forward(l2k1x))
+			l2k1x = leaky_relu(self.l2k1fc3.forward(l2k1x))
+			l2k1x = leaky_relu(self.l2k1fc4.forward(l2k1x))
 			
 			l2k2x = torch.cat((x_[:,0:260:13], x_[:,1:260:13], x_[:,2:260:13], x_[:,3:260:13], x_[:,4:260:13], x_[:,9:260:13], x_[:,10:260:13], x_[:,11:260:13], x_[:,12:260:13], x_[:,13:273:13], x_[:,14:273:13], x_[:,15:273:13], x_[:,16:273:13], x_[:,17:273:13], x_[:,22:273:13], x_[:,23:273:13], x_[:,24:273:13], x_[:,25:273:13], x_[:,26::13], x_[:,27::13], x_[:,28::13], x_[:,29::13], x_[:,30::13], x_[:,35::13], x_[:,36::13], x_[:,37::13], x_[:,38::13]), dim = 1).view(-1, 27)
-			l2k2x = torch.tanh(self.l2k2fc1.forward(l2k2x))
-			l2k2x = torch.tanh(self.l2k2fc2.forward(l2k2x))
-			l2k2x = torch.tanh(self.l2k2fc3.forward(l2k2x))
-			l2k2x = torch.tanh(self.l2k2fc4.forward(l2k2x))
+			l2k2x = leaky_relu(self.l2k2fc1.forward(l2k2x))
+			l2k2x = leaky_relu(self.l2k2fc2.forward(l2k2x))
+			l2k2x = leaky_relu(self.l2k2fc3.forward(l2k2x))
+			l2k2x = leaky_relu(self.l2k2fc4.forward(l2k2x))
 			
 			
-			x_ = torch.cat((l1k1x, l1k3x, l1k5x, l1k7x, l1k2x, l1k4x, l1k6x, l1k8x, l2k1x, l2k2x), dim = 1).view(-1, 200)
-			x_ = torch.cat((x,x_), dim = 1)
+			x_ = self.l3_bn.forward(torch.cat((l1k1x, l1k3x, l1k5x, l1k7x, l1k2x, l1k4x, l1k6x, l1k8x, l2k1x, l2k2x), dim = 1)).view(-1, 200)
+			x_ = torch.cat((x, x_), dim = 1)
 			
-			l3k1x = torch.tanh(self.l3k1fc1.forward(x_))
-			l3k1x = torch.tanh(self.l3k1fc2.forward(l3k1x))
-			l3k1x = torch.tanh(self.l3k1fc3.forward(l3k1x))
-			l3k1x = torch.tanh(self.l3k1fc4.forward(l3k1x))
-			l3k1x = torch.tanh(self.l3k1fc5.forward(l3k1x))
-			l3k1x = torch.tanh(self.l3k1fc6.forward(l3k1x))
-			l3k1x = torch.tanh(self.l3k1fc7.forward(l3k1x))
-			l3k1x = torch.tanh(self.l3k1fc8.forward(l3k1x))
+			l3k1x = leaky_relu(self.l3k1fc1.forward(x_))
+			l3k1x = leaky_relu(self.l3k1fc2.forward(l3k1x))
+			l3k1x = leaky_relu(self.l3k1fc3.forward(l3k1x))
+			l3k1x = leaky_relu(self.l3k1fc4.forward(l3k1x))
+			l3k1x = leaky_relu(self.l3k1fc5.forward(l3k1x))
+			l3k1x = leaky_relu(self.l3k1fc6.forward(l3k1x))
+			l3k1x = leaky_relu(self.l3k1fc7.forward(l3k1x))
+			l3k1x = leaky_relu(self.l3k1fc8.forward(l3k1x))
 
+			x_ = torch.cat((torch.cat((x_, l3k1x), dim = 1).view(-1, 2763), x_s), dim = 1)
 
-			x_ = torch.cat((x_, l3k1x), dim = 1).view(-1, 2763)
+			l4_res_x = self.l4resfc.forward(x_)
 			
-			x_ = torch.tanh(self.l4ln1.forward(self.l4fc1.forward(x_)))
-			x_ = torch.tanh(self.l4ln2.forward(self.l4fc2.forward(x_)))
-			x_ = torch.tanh(self.l4ln3.forward(self.l4fc3.forward(x_)))
-			x_ = torch.tanh(self.l4ln4.forward(self.l4fc4.forward(x_)))
-			x_ = torch.tanh(self.l4ln5.forward(self.l4fc5.forward(x_)))
-			x_ = torch.tanh(self.l4ln6.forward(self.l4fc6.forward(x_)))
-			x_ = torch.tanh(self.l4ln7.forward(self.l4fc7.forward(x_)))
-			x_ = torch.tanh(self.l4ln8.forward(self.l4fc8.forward(x_)))
-			x_ = torch.tanh(self.l4ln9.forward(self.l4fc9.forward(x_)))
-			x_ = torch.tanh(self.l4ln10.forward(self.l4fc10.forward(x_)))
+			x_ = leaky_relu(self.l4ln1.forward(self.l4fc1.forward(x_)))
+			x_ = leaky_relu(self.l4ln2.forward(self.l4fc2.forward(x_)))
+			x_ = leaky_relu(self.l4ln3.forward(self.l4fc3.forward(x_)))
+			x_ = leaky_relu(self.l4ln4.forward(self.l4fc4.forward(x_)))
+			x_ = leaky_relu(self.l4ln5.forward(self.l4fc5.forward(x_)))
+			x_ = leaky_relu(self.l4ln6.forward(self.l4fc6.forward(x_)))
+			x_ = leaky_relu(self.l4ln7.forward(self.l4fc7.forward(x_)))
+			x_ = leaky_relu(self.l4ln8.forward(self.l4fc8.forward(x_)))
+			x_ = leaky_relu(self.l4ln9.forward(self.l4fc9.forward(x_)))
+			x_ = leaky_relu(self.l4ln10.forward(self.l4fc10.forward(x_)) + l4_res_x)
 			return x_
 
 
@@ -196,7 +203,32 @@ class share_net(nn.Module):
 class critic(nn.Module):
 	def __init__(self, lr:float = 0.01):
 		super(critic, self).__init__()
-		self.share = share_net()
+		# self.share = share_net()
+		self.resfc = nn.Linear(2384, 1)
+  
+		self.afc1 = nn.Linear(336, 336)
+		self.afc2 = nn.Linear(336, 336)
+		self.afc3 = nn.Linear(336, 336)
+		self.afc4 = nn.Linear(336, 336)
+		self.afc5 = nn.Linear(336, 336)
+		self.afc6 = nn.Linear(336, 336)
+		self.afc7 = nn.Linear(336, 336)
+		self.afc8 = nn.Linear(336, 336)
+		self.afc9 = nn.Linear(336, 336)
+		self.afc10 = nn.Linear(336, 336)
+
+		self.aln1 = nn.LayerNorm(336, 1e-5)
+		self.aln2 = nn.LayerNorm(336, 1e-5)
+		self.aln3 = nn.LayerNorm(336, 1e-5)
+		self.aln4 = nn.LayerNorm(336, 1e-5)
+		self.aln5 = nn.LayerNorm(336, 1e-5)
+		self.aln6 = nn.LayerNorm(336, 1e-5)
+		self.aln7 = nn.LayerNorm(336, 1e-5)
+		self.aln8 = nn.LayerNorm(336, 1e-5)
+		self.aln9 = nn.LayerNorm(336, 1e-5)
+		self.aln10 = nn.LayerNorm(336, 1e-5)
+
+
 		self.fc21 = nn.Linear(2384, 2145)
 		self.fc22 = nn.Linear(2145, 1907)
 		self.fc23 = nn.Linear(1907, 1669)
@@ -224,22 +256,34 @@ class critic(nn.Module):
 		
 
 	def forward(self, x:torch.Tensor) -> torch.Tensor:
-			x_ = self.share.forward(x[:, :954])
-		#with autocast(dtype = torch.float16):
-			x = torch.cat((x_, x[:, 954:]), dim = 1)
-			# x[:, 994::42] = x[:, 994::42] / 10.0
-			# x[:, 995::42] = x[:, 995::42] / 10.0
-			x = torch.tanh(self.ln21.forward(self.fc21.forward(x)))
-			x = torch.tanh(self.ln22.forward(self.fc22.forward(x)))
-			x = torch.tanh(self.ln23.forward(self.fc23.forward(x)))
-			x = torch.tanh(self.ln24.forward(self.fc24.forward(x)))
-			x = torch.tanh(self.ln25.forward(self.fc25.forward(x)))
-			x = torch.tanh(self.ln26.forward(self.fc26.forward(x)))
-			x = torch.tanh(self.ln27.forward(self.fc27.forward(x)))
-			x = torch.tanh(self.ln28.forward(self.fc28.forward(x)))
-			x = torch.tanh(self.ln29.forward(self.fc29.forward(x)))
-			x = self.fc30.forward(x)
-			return x
+			x_ = x[:, -336:]
+
+			x_ = leaky_relu(self.aln1.forward(self.afc1.forward(x_)) + x_)
+			x_ = leaky_relu(self.aln2.forward(self.afc2.forward(x_)) + x_)
+			x_ = leaky_relu(self.aln3.forward(self.afc3.forward(x_)) + x_)
+			x_ = leaky_relu(self.aln4.forward(self.afc4.forward(x_)) + x_)
+			x_ = leaky_relu(self.aln5.forward(self.afc5.forward(x_)) + x_)
+			x_ = leaky_relu(self.aln6.forward(self.afc6.forward(x_)) + x_)
+			x_ = leaky_relu(self.aln7.forward(self.afc7.forward(x_)) + x_)
+			x_ = leaky_relu(self.aln8.forward(self.afc8.forward(x_)) + x_)
+			x_ = leaky_relu(self.aln9.forward(self.afc9.forward(x_)) + x_)
+			x_ = leaky_relu(self.aln10.forward(self.afc10.forward(x_)) + x_)
+
+			x__ = torch.cat((x[:, :-336],x_), dim = 1)
+			res_x = self.resfc.forward(x__)
+
+			x__ = leaky_relu(self.ln21.forward(self.fc21.forward(x__)))
+			x__ = leaky_relu(self.ln22.forward(self.fc22.forward(x__)))
+			x__ = leaky_relu(self.ln23.forward(self.fc23.forward(x__)))
+			x__ = leaky_relu(self.ln24.forward(self.fc24.forward(x__)))
+			x__ = leaky_relu(self.ln25.forward(self.fc25.forward(x__)))
+			x__ = leaky_relu(self.ln26.forward(self.fc26.forward(x__)))
+			x__ = leaky_relu(self.ln27.forward(self.fc27.forward(x__)))
+			x__ = leaky_relu(self.ln28.forward(self.fc28.forward(x__)))
+			x__ = leaky_relu(self.ln29.forward(self.fc29.forward(x__)))
+
+			x__ = leaky_relu((self.fc30.forward(x__) + res_x) * 0.0625)
+			return x__
 	
 
 	# def learn(self, s:torch.Tensor, a:torch.Tensor, r:torch.Tensor, t:critic, s_new:torch.Tensor, a_new:torch.Tensor):
@@ -278,8 +322,9 @@ class actor(nn.Module):
 	def __init__(self, noise_std:float = 0.1, lr:float = 0.01):
 		super(actor, self).__init__()
 		
-		self.share = share_net()
+		# self.share = share_net()
 
+		self.resfc = nn.Linear(2048, 336)
 
 		self.fc21 = nn.Linear(2048, 1962)
 		self.fc22 = nn.Linear(1962, 1876)
@@ -344,32 +389,34 @@ class actor(nn.Module):
 	
 
 	def forward(self, x:torch.Tensor) -> torch.Tensor:
-			x = self.share.forward(x)
-		
+			# x = self.share.forward(x)
+
 		#with autocast(dtype = torch.float16):
-			x = torch.tanh(self.ln21.forward(self.fc21.forward(x)))
-			x = torch.tanh(self.ln22.forward(self.fc22.forward(x)))
-			x = torch.tanh(self.ln23.forward(self.fc23.forward(x)))
-			x = torch.tanh(self.ln24.forward(self.fc24.forward(x)))
-			x = torch.tanh(self.ln25.forward(self.fc25.forward(x)))
-			x = torch.tanh(self.ln26.forward(self.fc26.forward(x)))
-			x = torch.tanh(self.ln27.forward(self.fc27.forward(x)))
-			x = torch.tanh(self.ln28.forward(self.fc28.forward(x)))
-			x = torch.tanh(self.ln29.forward(self.fc29.forward(x)))
-			x = torch.tanh(self.ln30.forward(self.fc30.forward(x)))
-			x = torch.tanh(self.ln31.forward(self.fc31.forward(x)))
-			x = torch.tanh(self.ln32.forward(self.fc32.forward(x)))
-			x = torch.tanh(self.ln33.forward(self.fc33.forward(x)))
-			x = torch.tanh(self.ln34.forward(self.fc34.forward(x)))
-			x = torch.tanh(self.ln35.forward(self.fc35.forward(x)))
-			x = torch.tanh(self.ln36.forward(self.fc36.forward(x)))
-			x = torch.tanh(self.ln37.forward(self.fc37.forward(x)))
-			x = torch.tanh(self.ln38.forward(self.fc38.forward(x)))
-			x = torch.tanh(self.ln39.forward(self.fc39.forward(x)))
+			res_x = self.resfc.forward(x)
 
-			x = torch.tanh(self.fc40.forward(x))
+			x = leaky_relu(self.ln21.forward(self.fc21.forward(x)))
+			x = leaky_relu(self.ln22.forward(self.fc22.forward(x)))
+			x = leaky_relu(self.ln23.forward(self.fc23.forward(x)))
+			x = leaky_relu(self.ln24.forward(self.fc24.forward(x)))
+			x = leaky_relu(self.ln25.forward(self.fc25.forward(x)))
+			x = leaky_relu(self.ln26.forward(self.fc26.forward(x)))
+			x = leaky_relu(self.ln27.forward(self.fc27.forward(x)))
+			x = leaky_relu(self.ln28.forward(self.fc28.forward(x)))
+			x = leaky_relu(self.ln29.forward(self.fc29.forward(x)))
+			x = leaky_relu(self.ln30.forward(self.fc30.forward(x)))
+			x = leaky_relu(self.ln31.forward(self.fc31.forward(x)))
+			x = leaky_relu(self.ln32.forward(self.fc32.forward(x)))
+			x = leaky_relu(self.ln33.forward(self.fc33.forward(x)))
+			x = leaky_relu(self.ln34.forward(self.fc34.forward(x)))
+			x = leaky_relu(self.ln35.forward(self.fc35.forward(x)))
+			x = leaky_relu(self.ln36.forward(self.fc36.forward(x)))
+			x = leaky_relu(self.ln37.forward(self.fc37.forward(x)))
+			x = leaky_relu(self.ln38.forward(self.fc38.forward(x)))
+			x = leaky_relu(self.ln39.forward(self.fc39.forward(x)))
 
-			# x_ = torch.tanh(x) * 2
+			x = torch.tanh(self.fc40.forward(x) + res_x)
+
+			# x_ = leaky_relu(x) * 2
 			# x_[:, 40::42] = x[:, 40::42] * 20 % 20
 			# x_[:, 41::42] = x[:, 41::42] * 20 % 20
 			return x
@@ -385,7 +432,7 @@ class actor(nn.Module):
 				
 			noise = torch.normal(mean = 0, std = self.noise_std, size = action.size()).cuda()
 			
-			action_ = (action + noise)
+			action_ = torch.clamp(action + noise, -1, 1)
 
 			# action_[:, 40::42] = (torch.rand(action[:, 40::42].size()).cuda() * 2 * self.var_range - 1 * self.var_range + action[:, 40::42]).round() % 20
 			# action_[:, 41::42] = (torch.rand(action[:, 41::42].size()).cuda() * 2 * self.var_range - 1 * self.var_range + action[:, 41::42]).round() % 20
@@ -398,7 +445,7 @@ class actor(nn.Module):
 	# 	self.train()
 	# 	#self.opt.zero_grad()
 
-	# 	output = self.forward(state)		
+	# 	output = self.forward(state)
 
 	# 	#with autocast(dtype = torch.bfloat16):
 	# 	action_probs = torch.distributions.Normal(output, self.noise_std).log_prob(action)
