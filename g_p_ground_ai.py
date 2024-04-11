@@ -25,26 +25,20 @@ if __name__ == '__main__':
 	writer = SummaryWriter('.\\' + name + '_log')
 	
 	tau = 0.001
-	critic_net = critic(1e-6)
-	actor_net = actor(1, 1e-5)
+	critic_net = critic(1e-5)
+	actor_net = actor(0.5, 1e-5)
 	
 	critic_target_net = critic(1e-4)
 	actor_target_net = actor(0.2, 1e-3)
 	
-	# torch.save({
-	# 	'share':share.state_dict(),
-	# 	'actor':actor_net.state_dict(),
-	# 	'actor_opt':actor_net.opt.state_dict(),
-	# 	'critic':critic_net.state_dict(),
-	# 	'critic_opt':critic_net.opt.state_dict()
-	# 	},'f:\\场地\\' + name + num + '.pth')
 
-	cp = torch.load('f:\\场地保留\\asd00000025.pth')
+
+	cp = torch.load('f:\\场地保留\\asd00000011.pth')
 	actor_net.load_state_dict(cp['actor'])
 	critic_net.load_state_dict(cp['critic'])
 	actor_target_net.load_state_dict(cp['actor_target'])
 	critic_target_net.load_state_dict(cp['critic_target'])
-
+	cp.clear()
 
 
 	# critic_net.share = share
@@ -65,6 +59,7 @@ if __name__ == '__main__':
 	exp_replay = deque(maxlen = 1024)
 
 	i = 0
+	i_ = 0
 	
 	callback_last = 0
 	
@@ -93,8 +88,6 @@ if __name__ == '__main__':
 	_, output_ = output_pipe.recept()
 
 	net_input_ = torch.FloatTensor(list(output_)).view(-1,954).cuda()
-	
-
 
 	while True:
 	
@@ -128,15 +121,17 @@ if __name__ == '__main__':
 
 		if G_[0] == 0.0:
 			exp_replay.append((net_input.view(-1, 954), callback.view(-1,1), net_input_.view(-1, 954), net_output.view(-1, 336)))
-
 		else:
+			exp_replay.append((net_input.view(-1, 954), callback.view(-1,1) + G_[0], net_input.view(-1, 954), net_output.view(-1, 336)))
 			writer.add_scalar('g', G_[0], i)
+			writer.add_scalar('last_step', i - i_, i)
+			i_ = i
 			
 
 			
 		if len(exp_replay) >= 512:
-			batch = random.sample(exp_replay, 512)
-			#batch.append(exp_replay[-1])
+			batch = random.sample(exp_replay, 511)
+			batch.append(exp_replay[-1])
 			
 			net_input, callback, net_input__, action = zip(*batch)
 			
@@ -150,12 +145,13 @@ if __name__ == '__main__':
 			
 
 			q = critic_net.forward(torch.cat((net_input, action), dim = 1))
+			q_n = q[-1,-1].item()
 
 			with torch.no_grad():
 				a_ = actor_target_net.forward(net_input__)
 				q_ = critic_target_net.forward(torch.cat((net_input__, a_), dim = 1))
 
-			td_e = callback / 1000 + 0.9977 * q_ - q
+			td_e = callback / 10 + 0.9977 * q_ - q
 			
 			critic_loss_ = torch.mean(torch.square(td_e))
 			critic_loss = critic_loss_.item()
@@ -165,9 +161,16 @@ if __name__ == '__main__':
 			
 			
 			action = actor_net.forward(net_input)
-			q = critic_net.forward(torch.cat((net_input, action), dim = 1))
+			with torch.no_grad():
+				noise = torch.normal(mean = 0, std = actor_net.noise_std, size = action.size()).cuda()
+				action_ = action + noise
+				q = critic_net.forward(torch.cat((net_input, action_), dim = 1))
+				
+			action_probs = torch.distributions.Normal(action, actor_net.noise_std).log_prob(action_).cuda() + actor_net.loss_bais
 			
-			actor_loss_ = -torch.mean(q)
+			actor_loss_ = -torch.mean(action_probs * ((q - torch.mean(q)) / torch.std(q)))
+
+			#actor_loss_ = -torch.mean(q)
 			actor_loss = actor_loss_.item()
 			
 			actor_loss_.backward()
@@ -181,16 +184,25 @@ if __name__ == '__main__':
 		
 		# if len(callback_) != 0:
 			#if(loss != 0.0):
+			writer.add_scalar('q', q_n, i)
 			writer.add_scalar('actor_loss', actor_loss, i)
-			writer.add_scalar('reward', callback_[0], i)
 			writer.add_scalar('critic_loss', critic_loss, i)	
 			
-			if (i % 10) == 9:
+			with torch.no_grad():
 				for param, target_param in zip(actor_net.parameters(), actor_target_net.parameters()):
 					target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
-    
+	
 				for param, target_param in zip(critic_net.parameters(), critic_target_net.parameters()):
 					target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
+
+				for critic_param, actor_param in zip(critic_net.share.parameters(), actor_net.share.parameters()):
+					temp_param = ((critic_param + actor_param) * 0.5).clone()
+					critic_param.data.copy_(tau * temp_param + (1.0 - tau) * critic_param)
+					actor_param.data.copy_(tau * temp_param + (1.0 - tau) * actor_param)
+					
+
+		writer.add_scalar('reward', callback_[0], i)
+		
 
 		if (i % 2000) == 1999:
 		
