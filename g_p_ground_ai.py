@@ -1,8 +1,6 @@
-import copy
 from turtle import circle
 import torch
 import torch.cuda
-import torch.nn.functional as F
 import sys
 from pipe import pipe
 from torch.utils.tensorboard import SummaryWriter
@@ -30,10 +28,10 @@ if __name__ == '__main__':
 	
 	writer = SummaryWriter(log_path + name + '_log')
 	
-	tau = 0.0001
-	critic_net_1 = critic(1e-2)
-	critic_net_2 = critic(1e-2)
-	actor_net = actor(0.2, 1e-6)
+	tau = 0.001
+	critic_net_1 = critic(1e-3)
+	critic_net_2 = critic(1e-3)
+	actor_net = actor(0.5, 1e-5)
 	#share = share_net(1e-3)
 	
 	critic_target_net_1 = critic(1e-4)
@@ -42,17 +40,17 @@ if __name__ == '__main__':
 	#target_share = share_net(1e-2)
 
 
-	# cp = torch.load('f:\\场地保留\\asd00000010.pth')
-	# critic_net_1.load_state_dict(cp['critic_1'])
-	# critic_net_2.load_state_dict(cp['critic_2'])
-	# critic_target_net_1.load_state_dict(cp['critic_target_1'])
-	# critic_target_net_2.load_state_dict(cp['critic_target_2'])
-	# cp.clear()
+	cp = torch.load('f:\\场地保留\\asd00000060.pth')
+	critic_net_1.load_state_dict(cp['critic_1'])
+	critic_net_2.load_state_dict(cp['critic_2'])
+	critic_target_net_1.load_state_dict(cp['critic_target_1'])
+	critic_target_net_2.load_state_dict(cp['critic_target_2'])
 
-	# cp = torch.load('f:\\场地保留\\asd00000016.pth')
-	# actor_net.load_state_dict(cp['actor'])
-	# actor_target_net.load_state_dict(cp['actor_target'])
-	# cp.clear()
+	actor_net.load_state_dict(cp['actor'])
+	actor_target_net.load_state_dict(cp['actor_target'])
+
+	cp.clear()
+
 
 	critic_net_1.cuda()
 	critic_net_2.cuda()
@@ -70,6 +68,7 @@ if __name__ == '__main__':
 	G_pipe = pipe('asd_G')
 
 	exp_replay = deque(maxlen = 2048)
+	g_exp_replay = deque(maxlen = 16)
 
 	i = 0
 	i_ = 0
@@ -148,12 +147,13 @@ if __name__ == '__main__':
 			
 ###########################################################################################################################
 
-			dist = -0.125 * (max((net_output[:, 0:39:2].square() + net_output[:, 1:40:2].square()).sum().item() - 80, 0) + 240) + 60
+			dist = -(max((net_output[:, 0:39:2].square() + net_output[:, 1:40:2].square()).sum() - 80, 0) + 240) / 32 + 70
 			r_sum = r_sum + callback_[0] + dist
 			if G_[0] == 0.0:				
 				exp_replay.append([net_input.view(-1, 955), callback.view(-1,1) + dist, net_input_.view(-1, 955), net_output.view(-1, 336), 0])		
 			else:
 				exp_replay.append([net_input.view(-1, 955), callback.view(-1,1) + dist + (i - i_) + r_sum  / 16, net_input.view(-1, 955), net_output.view(-1, 336), 1])
+				g_exp_replay.append([net_input.view(-1, 955), callback.view(-1,1) + dist + (i - i_) + r_sum  / 16, net_input.view(-1, 955), net_output.view(-1, 336), 1])
 
 				writer.add_scalar('r/g', G_[0], i)
 				writer.add_scalar('r/sum', r_sum, i)
@@ -165,22 +165,25 @@ if __name__ == '__main__':
 			
 ###########################################################################################################################
 			
-		if len(exp_replay) >= 512:
+		if len(exp_replay) >= 512 - len(g_exp_replay):
 			with torch.no_grad():
-				batch = random.sample(exp_replay, 511)
+				batch = random.sample(exp_replay, 511 - len(g_exp_replay))
+				for j in g_exp_replay:
+					batch.append(j)
 				batch.append(exp_replay[-1])
 				
 				net_input, callback, net_input__, action, done = zip(*batch)
 				
 				net_input = torch.cat(net_input).view(-1, 955)
 
-				callback = torch.cat(callback).view(-1,1) / 128
+				callback = torch.cat(callback).view(-1,1)
 				
 				reward = callback[-1, -1]
 
 				net_input__ = torch.cat(net_input__).view(-1, 955)
 				action = torch.cat(action).view(-1, 336)
 				done = torch.tensor(done).view(-1,1).cuda()
+				a_ = actor_target_net.forward(net_input__)
 
 			writer.add_scalar('r/reward', reward, i)
 
@@ -192,7 +195,6 @@ if __name__ == '__main__':
 			q_n_1 = q_1[-1,-1].item()
 
 			with torch.no_grad():
-				a_ = actor_target_net.forward(net_input__)
 				q__1 = critic_target_net_1.forward(torch.cat((net_input__, a_), dim = 1))
 				y_1 = callback + 0.99 * q__1 * (1 - done)
 
@@ -201,7 +203,7 @@ if __name__ == '__main__':
 			critic_loss__1 = td_e_1.square().mean()
 			critic_loss_1 = critic_loss__1.item()
 			c_1_loss_smooth = 0.1 * critic_loss_1 + 0.9 * c_1_loss_smooth
-			if c_1_loss_smooth > 0.0025:
+			if c_1_loss_smooth > 1:
 				critic_loss__1.backward()
 				# torch.nn.utils.clip_grad_value_(critic_net.parameters(), 1)
 				critic_net_1.opt.step()
@@ -228,7 +230,6 @@ if __name__ == '__main__':
 			q_n_2 = q_2[-1,-1].item()
 
 			with torch.no_grad():
-				a_ = actor_target_net.forward(net_input__)
 				q__2 = critic_target_net_2.forward(torch.cat((net_input__, a_), dim = 1))
 				y_2 = callback + 0.99 * q__2 * (1 - done)
 
@@ -237,7 +238,7 @@ if __name__ == '__main__':
 			critic_loss__2 = td_e_2.square().mean()
 			critic_loss_2 = critic_loss__2.item()
 			c_2_loss_smooth = 0.1 * critic_loss_2 + 0.9 * c_2_loss_smooth
-			if c_2_loss_smooth > 0.0025:
+			if c_2_loss_smooth > 1:
 				critic_loss__2.backward()
 				# torch.nn.utils.clip_grad_value_(critic_net.parameters(), 1)
 				critic_net_2.opt.step()
@@ -258,52 +259,66 @@ if __name__ == '__main__':
 
 ###########################################################################################################################
 
-			#if c_1_loss_smooth < 0.005 and c_2_loss_smooth < 0.005:
+			if i > 4096 and c_1_loss_smooth < 500 and c_2_loss_smooth < 500:
 
-			actor_net.opt.zero_grad()
+				with torch.no_grad():
+					batch = random.sample(exp_replay, 512)
+					
+					net_input, _, _, _, _ = zip(*batch)
+					
+					net_input = torch.cat(net_input).view(-1, 955)
 
-			action = actor_net.forward(net_input)
-			if torch.any(torch.isnan(action)) or action.abs().min() > 0.9:
-				winsound.Beep(500,3000)
-				continue
+				actor_net.noise_std = 0.1
+
+				actor_net.opt.zero_grad()
+
+				action = actor_net.forward(net_input)
+				if torch.any(torch.isnan(action)) or action.abs().min() > 0.9:
+					winsound.Beep(500,3000)
+					continue
 
 
-			q_1 = critic_net_1.forward(torch.cat((net_input, action), dim = 1))
-			q_2 = critic_net_2.forward(torch.cat((net_input, action), dim = 1))
-			actor_loss_ = -torch.min(q_1, q_2).mean()
-			actor_loss = actor_loss_.item()
+				q_1 = critic_net_1.forward(torch.cat((net_input, action), dim = 1))
+				q_2 = critic_net_2.forward(torch.cat((net_input, action), dim = 1))
+				actor_loss_ = -torch.min(q_1, q_2).mean()
+				actor_loss = actor_loss_.item()
 
-			# torch.nn.utils.clip_grad_value_(actor_net.parameters(), 1)
-			# torch.nn.utils.clip_grad_value_(share.parameters(), 1)
+				# torch.nn.utils.clip_grad_value_(actor_net.parameters(), 1)
+				# torch.nn.utils.clip_grad_value_(share.parameters(), 1)
 
-			actor_loss_.backward()
-			actor_net.opt.step()
+				actor_loss_.backward()
+				actor_net.opt.step()
 
-			if (i % 2000) == 0:
-				for name_, param in actor_net.named_parameters():
-					if 'fc' in name_:
-						writer.add_histogram('asd_actor_fc/' + name_, param, i)
-						writer.add_histogram('asd_actor_fc_grad/' + name_, param.grad, i)
-					else:
-						writer.add_histogram('asd_actor_ln/' + name_, param, i)
-						writer.add_histogram('asd_actor_ln_grad/' + name_, param.grad, i)
+				if (i % 2000) == 0:
+					for name_, param in actor_net.named_parameters():
+						if 'fc' in name_:
+							writer.add_histogram('asd_actor_fc/' + name_, param, i)
+							writer.add_histogram('asd_actor_fc_grad/' + name_, param.grad, i)
+						else:
+							writer.add_histogram('asd_actor_ln/' + name_, param, i)
+							writer.add_histogram('asd_actor_ln_grad/' + name_, param.grad, i)
 
-			actor_net.opt.zero_grad()
+				actor_net.opt.zero_grad()
 
-			writer.add_scalar('actor/loss', actor_loss, i)
+				writer.add_scalar('actor/loss', actor_loss, i)
+			else:
+				actor_net.noise_std = 0.5
+
+
+
 
 ###########################################################################################################################
 
 
 			
 			with torch.no_grad():
-				for param, target_param in zip(actor_net.parameters(), actor_target_net.parameters()):
-					target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
-
 				for param, target_param in zip(critic_net_1.parameters(), critic_target_net_1.parameters()):
 					target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
 
 				for param, target_param in zip(critic_net_2.parameters(), critic_target_net_2.parameters()):
+					target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
+
+				for param, target_param in zip(actor_net.parameters(), actor_target_net.parameters()):
 					target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
 
 			

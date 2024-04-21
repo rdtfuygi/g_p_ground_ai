@@ -10,7 +10,7 @@ class pipe:
 		p = 0
 		while True:
 			try:
-				p=win32file.CreateFileW(
+				p = win32file.CreateFileW(
 					self.name,
 					win32file.GENERIC_READ | win32file.GENERIC_WRITE,
 					win32file.FILE_SHARE_WRITE,

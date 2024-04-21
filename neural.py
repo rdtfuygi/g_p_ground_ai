@@ -85,45 +85,11 @@ class share_net(nn.Module):
 		self.l4fc4 = nn.Linear(1720,1372)
 		self.l4fc5 = nn.Linear(1372,1024)
 
-		self.l4fc6 = nn.Linear(1024, 1024)
-		self.l4fc7 = nn.Linear(1024, 1024)
-		self.l4fc8 = nn.Linear(1024, 1024)
-		self.l4fc9 = nn.Linear(1024, 1024)
-		self.l4fc10 = nn.Linear(1024, 1024)
-
-		self.l4fc11 = nn.Linear(1024, 1024)
-		self.l4fc12 = nn.Linear(1024, 1024)
-		self.l4fc13 = nn.Linear(1024, 1024)
-		self.l4fc14 = nn.Linear(1024, 1024)
-		self.l4fc15 = nn.Linear(1024, 1024)
-		self.l4fc16 = nn.Linear(1024, 1024)
-		self.l4fc17 = nn.Linear(1024, 1024)
-		self.l4fc18 = nn.Linear(1024, 1024)
-		self.l4fc19 = nn.Linear(1024, 1024)
-		self.l4fc20 = nn.Linear(1024, 1024)
-		
 		self.l4ln1 = nn.LayerNorm(2416, 1e-5)
 		self.l4ln2 = nn.LayerNorm(2068, 1e-5)
 		self.l4ln3 = nn.LayerNorm(1720, 1e-5)
 		self.l4ln4 = nn.LayerNorm(1372, 1e-5)
 		self.l4ln5 = nn.LayerNorm(1024, 1e-5)
-
-		self.l4ln6 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln7 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln8 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln9 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln10 = nn.LayerNorm(1024, 1e-5)
-
-		self.l4ln11 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln12 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln13 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln14 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln15 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln16 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln17 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln18 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln19 = nn.LayerNorm(1024, 1e-5)
-		self.l4ln20 = nn.LayerNorm(1024, 1e-5)
 		
 		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-5, weight_decay = 1e-5)
 	
@@ -215,23 +181,6 @@ class share_net(nn.Module):
 			x_ = torch.tanh(self.l4ln3.forward(self.l4fc3.forward(x_)))
 			x_ = torch.tanh(self.l4ln4.forward(self.l4fc4.forward(x_)))
 			x_ = torch.tanh(self.l4ln5.forward(self.l4fc5.forward(x_)) + l4_res_x)
-
-			x_ = torch.tanh(self.l4ln6.forward(self.l4fc6.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln7.forward(self.l4fc7.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln8.forward(self.l4fc8.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln9.forward(self.l4fc9.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln10.forward(self.l4fc10.forward(x_)) + x_)
-
-			x_ = torch.tanh(self.l4ln11.forward(self.l4fc11.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln12.forward(self.l4fc12.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln13.forward(self.l4fc13.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln14.forward(self.l4fc14.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln15.forward(self.l4fc15.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln16.forward(self.l4fc16.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln17.forward(self.l4fc17.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln18.forward(self.l4fc18.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln19.forward(self.l4fc19.forward(x_)) + x_)
-			x_ = torch.tanh(self.l4ln20.forward(self.l4fc20.forward(x_)) + x_)
 			return x_
 
 
@@ -270,12 +219,17 @@ class critic(nn.Module):
 		self.afc1 = nn.Linear(336, 336)
 		self.afc2 = nn.Linear(336, 336)
 		self.afc3 = nn.Linear(336, 336)
+		self.afc4 = nn.Linear(336, 336)
+		self.afc5 = nn.Linear(336, 336)
+		self.afc6 = nn.Linear(336, 336)
 
 
 		self.aln1 = nn.LayerNorm(336, 1e-5)
 		self.aln2 = nn.LayerNorm(336, 1e-5)
 		self.aln3 = nn.LayerNorm(336, 1e-5)
-
+		self.aln4 = nn.LayerNorm(336, 1e-5)
+		self.aln5 = nn.LayerNorm(336, 1e-5)
+		self.aln6 = nn.LayerNorm(336, 1e-5)
 
 
 		self.fc21 = nn.Linear(1360,1224)
@@ -321,23 +275,22 @@ class critic(nn.Module):
 			x_c2 = torch.tanh(self.al1k2fc2.forward(x_c2))
 			x_c2 = torch.tanh(self.al1k2fc3.forward(x_c2)).view(-1, 20)
 
-			x_c_ = torch.cat((x_c_, x_c1, x_c2), dim = 1).view(-1, 656)
-
-			
+			x_c_ = torch.cat((x_c_, x_c1, x_c2), dim = 1).view(-1, 656)			
 
 			x_ = torch.tanh(self.al2ln1.forward(self.al2fc1.forward(x_c_)))
 			x_ = torch.tanh(self.al2ln2.forward(self.al2fc2.forward(x_)))
 			x_ = torch.tanh(self.al2ln3.forward(self.al2fc3.forward(x_)))
 			x_ = torch.tanh(self.al2ln4.forward(self.al2fc4.forward(x_)))
-			x_ = torch.tanh(self.al2ln5.forward(self.al2fc5.forward(x_)) + self.al2resfc.forward(x_c_))
+			x_ = torch.tanh(self.al2ln5.forward(self.al2fc5.forward(x_))) + self.al2resfc.forward(x_c_)
 
-
-
-			x_ = torch.tanh(self.aln1.forward(self.afc1.forward(x_)) + x_)
-			x_ = torch.tanh(self.aln2.forward(self.afc2.forward(x_)) + x_)
-			x_ = torch.tanh(self.aln3.forward(self.afc3.forward(x_)) + x_)
-
-
+			x__ = x_
+			x_ = torch.tanh(self.aln1.forward(self.afc1.forward(x_)))
+			x_ = torch.tanh(self.aln2.forward(self.afc2.forward(x_)))
+			x_ = torch.tanh(self.aln3.forward(self.afc3.forward(x_)))
+			x_ = torch.tanh(self.aln4.forward(self.afc4.forward(x_)))
+			x_ = torch.tanh(self.aln5.forward(self.afc5.forward(x_)))
+			x_ = torch.tanh(self.aln6.forward(self.afc6.forward(x_)) + x__)
+			
 			x__ = torch.cat((x_0, x_), dim = 1)
 			res_x = self.resfc.forward(x__)
 
@@ -494,9 +447,6 @@ class actor(nn.Module):
 
 			x = torch.tanh(self.fc40.forward(x) + res1_x + res2_x)
 
-			# x_ = leaky_relu(x) * 2
-			# x_[:, 40::42] = x[:, 40::42] * 20 % 20
-			# x_[:, 41::42] = x[:, 41::42] * 20 % 20
 			return x
 	
 
@@ -511,9 +461,6 @@ class actor(nn.Module):
 			noise = torch.normal(mean = 0, std = self.noise_std, size = action.size()).cuda()
 			
 			action_ = torch.clamp(action + noise, -1, 1)
-
-			# action_[:, 40::42] = (torch.rand(action[:, 40::42].size()).cuda() * 2 * self.var_range - 1 * self.var_range + action[:, 40::42]).round() % 20
-			# action_[:, 41::42] = (torch.rand(action[:, 41::42].size()).cuda() * 2 * self.var_range - 1 * self.var_range + action[:, 41::42]).round() % 20
 
 		return action_.detach()
 	
