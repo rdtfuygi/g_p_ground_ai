@@ -7,8 +7,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 import random
 
-from g_p_tranformer import actor
-from g_p_tranformer import critic
+from g_p_transformer import actor
+from g_p_transformer import critic
 #from neural import share_net
 
 from collections import deque

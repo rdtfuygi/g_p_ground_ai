@@ -1,6 +1,6 @@
 import torch
-from g_p_tranformer import actor
-from g_p_tranformer import critic
+from g_p_transformer import actor
+from g_p_transformer import critic
 from torch.utils.tensorboard import SummaryWriter
 
 log_path = 'D:\\'
