@@ -233,8 +233,15 @@ class critic(nn.Module):
 
 
 		self.fc21 = nn.Linear(1360,1224)
-		self.fc22 = nn.Linear(1224,1088)
-		self.fc23 = nn.Linear(1088,952)
+		self.fc22 = nn.Linear(1224,1024)
+
+		self.fc31 = nn.Linear(1024,1024)
+		self.fc32 = nn.Linear(1024,1024)
+		self.fc33 = nn.Linear(1024,1024)
+		self.fc34 = nn.Linear(1024,1024)
+		self.fc35 = nn.Linear(1024,1024)
+
+		self.fc23 = nn.Linear(1024,952)
 		self.fc24 = nn.Linear(952,816)
 		self.fc25 = nn.Linear(816,680)
 		self.fc26 = nn.Linear(680,544)
@@ -244,7 +251,14 @@ class critic(nn.Module):
 		self.fc30 = nn.Linear(136,1)
 		
 		self.ln21 = nn.LayerNorm(1224, 1e-5)
-		self.ln22 = nn.LayerNorm(1088, 1e-5)
+		self.ln22 = nn.LayerNorm(1024, 1e-5)
+
+		self.ln31 = nn.LayerNorm(1024, 1e-5)
+		self.ln32 = nn.LayerNorm(1024, 1e-5)
+		self.ln33 = nn.LayerNorm(1024, 1e-5)
+		self.ln34 = nn.LayerNorm(1024, 1e-5)
+		self.ln35 = nn.LayerNorm(1024, 1e-5)
+
 		self.ln23 = nn.LayerNorm(952, 1e-5)
 		self.ln24 = nn.LayerNorm(816, 1e-5)
 		self.ln25 = nn.LayerNorm(680, 1e-5)
@@ -255,7 +269,7 @@ class critic(nn.Module):
 		
 		#self.scaler = GradScaler()
 		
-		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-5, weight_decay = 1e-2)
+		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-5, weight_decay = 1e-8)
 		
 
 	def forward(self, x:torch.Tensor) -> torch.Tensor:
@@ -296,6 +310,13 @@ class critic(nn.Module):
 
 			x__ = leaky_relu(self.ln21.forward(self.fc21.forward(x__)))
 			x__ = leaky_relu(self.ln22.forward(self.fc22.forward(x__)))
+
+			x__ = leaky_relu(self.ln31.forward(self.fc31.forward(x__)) + x__)
+			x__ = leaky_relu(self.ln32.forward(self.fc32.forward(x__)) + x__)
+			x__ = leaky_relu(self.ln33.forward(self.fc33.forward(x__)) + x__)
+			x__ = leaky_relu(self.ln34.forward(self.fc34.forward(x__)) + x__)
+			x__ = leaky_relu(self.ln35.forward(self.fc35.forward(x__)) + x__)
+
 			x__ = leaky_relu(self.ln23.forward(self.fc23.forward(x__)))
 			x__ = leaky_relu(self.ln24.forward(self.fc24.forward(x__)))
 			x__ = leaky_relu(self.ln25.forward(self.fc25.forward(x__)))
@@ -353,6 +374,14 @@ class actor(nn.Module):
 		self.resfc2.weight.data = self.resfc2.weight.data / 32
 		self.resfc2.bias.data = self.resfc2.bias.data / 32
 
+
+		self.fc41 = nn.Linear(1024,1024)
+		self.fc42 = nn.Linear(1024,1024)
+		self.fc43 = nn.Linear(1024,1024)
+		self.fc44 = nn.Linear(1024,1024)
+		self.fc45 = nn.Linear(1024,1024)
+
+
 		self.fc21 = nn.Linear(1024,989)
 		self.fc22 = nn.Linear(989,955)
 		self.fc23 = nn.Linear(955,920)
@@ -377,6 +406,12 @@ class actor(nn.Module):
 		self.fc40.bias.data = self.fc40.bias.data / 32
 		#torch.nn.init.uniform_(self.fc40.weight, -0.001, 0.001)
 
+
+		self.ln41 = nn.LayerNorm(1024, 1e-5)
+		self.ln42 = nn.LayerNorm(1024, 1e-5)
+		self.ln43 = nn.LayerNorm(1024, 1e-5)
+		self.ln44 = nn.LayerNorm(1024, 1e-5)
+		self.ln45 = nn.LayerNorm(1024, 1e-5)
 
 		self.ln21 = nn.LayerNorm(989, 1e-5)
 		self.ln22 = nn.LayerNorm(955, 1e-5)
@@ -409,7 +444,7 @@ class actor(nn.Module):
 		# self.state = torch.Tensor()
 		# self.action = torch.Tensor()
 		#self.scaler = GradScaler()
-		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-5, weight_decay = 1e-2)
+		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-5, weight_decay = 1e-8)
 		
 		self.loss_bais = 0.91893853320467274178032973640562 + math.log(self.noise_std)
 		#self.reward_bais = 0.0
@@ -419,19 +454,25 @@ class actor(nn.Module):
 	def forward(self, x:torch.Tensor) -> torch.Tensor:
 			x = self.share.forward(x)
 
+			x = leaky_relu(self.ln41.forward(self.fc41.forward(x)) + x)
+			x = leaky_relu(self.ln42.forward(self.fc42.forward(x)) + x)
+			x = leaky_relu(self.ln43.forward(self.fc43.forward(x)) + x)
+			x = leaky_relu(self.ln44.forward(self.fc44.forward(x)) + x)
+			x = leaky_relu(self.ln45.forward(self.fc45.forward(x)) + x)
+
 		#with autocast(dtype = torch.float16):
 			res1_x = self.resfc1.forward(x)
 
-			x = torch.tanh(self.ln21.forward(self.fc21.forward(x)))
-			x = torch.tanh(self.ln22.forward(self.fc22.forward(x)))
-			x = torch.tanh(self.ln23.forward(self.fc23.forward(x)))
-			x = torch.tanh(self.ln24.forward(self.fc24.forward(x)))
-			x = torch.tanh(self.ln25.forward(self.fc25.forward(x)))
-			x = torch.tanh(self.ln26.forward(self.fc26.forward(x)))
-			x = torch.tanh(self.ln27.forward(self.fc27.forward(x)))
-			x = torch.tanh(self.ln28.forward(self.fc28.forward(x)))
-			x = torch.tanh(self.ln29.forward(self.fc29.forward(x)))
-			x = torch.tanh(self.ln30.forward(self.fc30.forward(x)))
+			x = leaky_relu(self.ln21.forward(self.fc21.forward(x)))
+			x = leaky_relu(self.ln22.forward(self.fc22.forward(x)))
+			x = leaky_relu(self.ln23.forward(self.fc23.forward(x)))
+			x = leaky_relu(self.ln24.forward(self.fc24.forward(x)))
+			x = leaky_relu(self.ln25.forward(self.fc25.forward(x)))
+			x = leaky_relu(self.ln26.forward(self.fc26.forward(x)))
+			x = leaky_relu(self.ln27.forward(self.fc27.forward(x)))
+			x = leaky_relu(self.ln28.forward(self.fc28.forward(x)))
+			x = leaky_relu(self.ln29.forward(self.fc29.forward(x)))
+			x = leaky_relu(self.ln30.forward(self.fc30.forward(x)))
 
 			res2_x = self.resfc2.forward(x)
 
