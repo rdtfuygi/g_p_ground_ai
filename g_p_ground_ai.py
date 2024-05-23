@@ -34,20 +34,20 @@ if __name__ == '__main__':
 	c_lr = 1e-5
 
 	critic_net_1 = critic(1082, 1, c_l, 1024, lr = c_lr)
-	#critic_net_2 = critic(1083, 1, c_l, lr = c_lr)
+	critic_net_2 = critic(1083, 1, c_l, lr = c_lr)
 	actor_net = actor(810, 272, 200, lr = 1e-7, noise_std = 0.1)
 
 	
 	critic_target_net_1 = critic(1082, 1, c_l, 1024, lr = c_lr)
-	#critic_target_net_2 = critic(1083, 1, c_l, lr = c_lr)
+	critic_target_net_2 = critic(1083, 1, c_l, lr = c_lr)
 	actor_target_net = actor(810, 272, 200, lr = 1e-6, noise_std = 0.1)
 
 	with torch.no_grad():
 		for param, target_param in zip(critic_net_1.parameters(), critic_target_net_1.parameters()):
 			target_param.data.copy_(param.data)
 
-		# for param, target_param in zip(critic_net_2.parameters(), critic_target_net_2.parameters()):
-		# 	target_param.data.copy_(param.data)
+		for param, target_param in zip(critic_net_2.parameters(), critic_target_net_2.parameters()):
+			target_param.data.copy_(param.data)
 
 		for param, target_param in zip(actor_net.parameters(), actor_target_net.parameters()):
 			target_param.data.copy_(param.data)
@@ -67,13 +67,13 @@ if __name__ == '__main__':
 
 
 	critic_net_1.cuda()
-	#critic_net_2.cuda()
+	critic_net_2.cuda()
 	actor_net.cuda()
 	
 	critic_target_net_1.cuda()
 	critic_target_net_1.eval()
-	# critic_target_net_2.cuda()
-	# critic_target_net_2.eval()
+	critic_target_net_2.cuda()
+	critic_target_net_2.eval()
 	actor_target_net.cuda()
 	actor_target_net.eval()
 
@@ -105,13 +105,13 @@ if __name__ == '__main__':
 		else:
 			writer.add_histogram('asd_critic_1_ln/' + name_, param, i)
 			#writer.add_histogram('asd_critic_ln_grad/' + name_, param.grad, i)
-	# for name_, param in critic_net_2.named_parameters():
-	# 	if 'fc' in name_:
-	# 		writer.add_histogram('asd_critic_2_fc/' + name_, param, i)
-	# 		#writer.add_histogram('asd_critic_fc_grad/' + name_, param.grad, i)
-	# 	else:
-	# 		writer.add_histogram('asd_critic_2_ln/' + name_, param, i)
-	# 		#writer.add_histogram('asd_critic_ln_grad/' + name_, param.grad, i)
+	for name_, param in critic_net_2.named_parameters():
+		if 'fc' in name_:
+			writer.add_histogram('asd_critic_2_fc/' + name_, param, i)
+			#writer.add_histogram('asd_critic_fc_grad/' + name_, param.grad, i)
+		else:
+			writer.add_histogram('asd_critic_2_ln/' + name_, param, i)
+			#writer.add_histogram('asd_critic_ln_grad/' + name_, param.grad, i)
 
 
 
@@ -289,47 +289,47 @@ if __name__ == '__main__':
 
 ###########################################################################################################################
 
-			# critic_net_2.opt.zero_grad()
+			critic_net_2.opt.zero_grad()
 			
-			# q_2 = critic_net_2.forward(critic_in)
-			# q_n_2 = q_2[-1,-1].item()
+			q_2 = critic_net_2.forward(critic_in)
+			q_n_2 = q_2[-1,-1].item()
 
-			# with torch.no_grad():
-			# 	q__2 = critic_target_net_2.forward(critic_target_in)
-			# 	y_2 = callback + td_s * q__2 * not_done
+			with torch.no_grad():
+				q__2 = critic_target_net_2.forward(critic_target_in)
+				y_2 = callback + td_s * q__2 * not_done
 
-			# td_e_2 = y_2 - q_2
+			td_e_2 = y_2 - q_2
 
-			# td_2 = td_e_2[-1, -1].item()
+			td_2 = td_e_2[-1, -1].item()
 			
-			# critic_loss__2 = td_e_2.square().mean()
-			# critic_loss_2 = critic_loss__2.item()
-			# c_2_loss_smooth = 0.1 * critic_loss_2 + 0.9 * c_2_loss_smooth
+			critic_loss__2 = td_e_2.square().mean()
+			critic_loss_2 = critic_loss__2.item()
+			c_2_loss_smooth = 0.1 * critic_loss_2 + 0.9 * c_2_loss_smooth
 
-			# # if c_2_loss_smooth < 500:
-			# # 	c_2_l = False
-			# # elif c_2_loss_smooth > 1000:
-			# # 	c_2_l = True
+			# if c_2_loss_smooth < 500:
+			# 	c_2_l = False
+			# elif c_2_loss_smooth > 1000:
+			# 	c_2_l = True
 
-			# if c_2_l:
-			# 	critic_loss__2.backward()
-			# 	critic_net_2.opt.step()
+			if c_2_l:
+				critic_loss__2.backward()
+				critic_net_2.opt.step()
 
-			# 	if (i % 2000) == 0:
-			# 		for name_, param in critic_net_2.named_parameters():
-			# 			if 'fc' in name_:
-			# 				writer.add_histogram('asd_critic_2_fc/' + name_, param, i)
-			# 				writer.add_histogram('asd_critic_2_fc_grad/' + name_, param.grad, i)
-			# 			else:
-			# 				writer.add_histogram('asd_critic_2_ln/' + name_, param, i)
-			# 				writer.add_histogram('asd_critic_2_ln_grad/' + name_, param.grad, i)
+				if (i % 2000) == 0:
+					for name_, param in critic_net_2.named_parameters():
+						if 'fc' in name_:
+							writer.add_histogram('asd_critic_2_fc/' + name_, param, i)
+							writer.add_histogram('asd_critic_2_fc_grad/' + name_, param.grad, i)
+						else:
+							writer.add_histogram('asd_critic_2_ln/' + name_, param, i)
+							writer.add_histogram('asd_critic_2_ln_grad/' + name_, param.grad, i)
 
-			# critic_net_2.opt.zero_grad()
+			critic_net_2.opt.zero_grad()
 
-			# writer.add_scalar('critic/q_2', q_n_2, i)
-			# writer.add_scalar('critic/loss_2', critic_loss_2, i)
-			# writer.add_scalar('critic/td_2', td_2, i)
-			# # writer.add_scalar('critic/loss_2_smooth', c_2_loss_smooth, i)
+			writer.add_scalar('critic/q_2', q_n_2, i)
+			writer.add_scalar('critic/loss_2', critic_loss_2, i)
+			writer.add_scalar('critic/td_2', td_2, i)
+			# writer.add_scalar('critic/loss_2_smooth', c_2_loss_smooth, i)
 
 
 ###########################################################################################################################
@@ -337,7 +337,7 @@ if __name__ == '__main__':
 			if i>0:
 				actor_net.opt.zero_grad()
 				critic_net_1.opt.zero_grad()
-				#critic_net_2.opt.zero_grad()
+				critic_net_2.opt.zero_grad()
 
 
 				writer.add_scalar('actor/r_smooth', r_smooth, i)
@@ -357,13 +357,13 @@ if __name__ == '__main__':
 					critic_in = torch.cat((net_input, output), dim = 1)
 
 					critic_net_1.eval()
-					#critic_net_2.eval()
+					critic_net_2.eval()
 					q_1 = critic_net_1.forward(critic_in)
-					#q_2 = critic_net_2.forward(critic_in)
+					q_2 = critic_net_2.forward(critic_in)
 					critic_net_1.train()
-					#critic_net_2.train()
+					critic_net_2.train()
 
-					actor_loss_ = -q_1.mean() * 16
+					actor_loss_ = -torch.min(q_1, q_2).mean()
 
 					actor_loss = actor_loss_.item()
 					writer.add_scalar('actor/loss_1', actor_loss, i)
@@ -396,9 +396,9 @@ if __name__ == '__main__':
 			#, c_2_param, c_2_target_param
 			#, critic_net_2.parameters(), critic_target_net_2.parameters()
 			with torch.no_grad():
-				for c_1_param, c_1_target_param, a_param, a_target_param in zip(critic_net_1.parameters(), critic_target_net_1.parameters(), actor_net.parameters(), actor_target_net.parameters()):
+				for c_1_param, c_1_target_param, c_2_param, c_2_target_param, a_param, a_target_param in zip(critic_net_1.parameters(), critic_target_net_1.parameters(), critic_net_2.parameters(), critic_target_net_2.parameters(), actor_net.parameters(), actor_target_net.parameters()):
 					c_1_target_param.data.copy_(tau * c_1_param.data + (1.0 - tau) * c_1_target_param.data)
-					#c_2_target_param.data.copy_(tau * c_2_param.data + (1.0 - tau) * c_2_target_param.data)
+					c_2_target_param.data.copy_(tau * c_2_param.data + (1.0 - tau) * c_2_target_param.data)
 					a_target_param.data.copy_(tau * a_param.data + (1.0 - tau) * a_target_param.data)
 					
 
@@ -409,10 +409,10 @@ if __name__ == '__main__':
 				torch.save({
 					'actor':actor_net.state_dict(),
 					'critic_1':critic_net_1.state_dict(),
-					#'critic_2':critic_net_2.state_dict(),
+					'critic_2':critic_net_2.state_dict(),
 					'actor_target':actor_target_net.state_dict(),
 					'critic_target_1':critic_target_net_1.state_dict(),
-					#'critic_target_2':critic_target_net_2.state_dict(),
+					'critic_target_2':critic_target_net_2.state_dict(),
 					},'F:\\场地\\' + name + num + '.pth')
 		
 		i += 1
