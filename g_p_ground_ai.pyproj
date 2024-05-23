@@ -21,8 +21,12 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="c++load.py" />
+    <Compile Include="graph.py" />
+    <Compile Include="g_p_ann.py" />
+    <Compile Include="g_p_gcn.py" />
     <Compile Include="g_p_ground_ai.py" />
-    <Compile Include="neural.py" />
+    <Compile Include="g_p_transformer.py" />
     <Compile Include="pipe.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

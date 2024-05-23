@@ -94,27 +94,20 @@ class critic(nn.Module):
 
 		self.encoders = nn.ModuleList()
 		for _ in range(num_encoder):
-			self.encoders.append(encoder(2, num_dim, num_head))
+			self.encoders.append(encoder(5, num_dim, num_head))
 
 		self.decoders = nn.ModuleList()
 		for _ in range(num_decoder):
-			self.decoders.append(decoder(2, num_dim, num_head))
+			self.decoders.append(decoder(5, num_dim, num_head))
 
-		p = []
-		for i in range(715):
-			p.append(i / 715.0)
-		self.p = torch.FloatTensor(p).view(1, 715, 1).cuda()
-
-		self.fc = nn.Linear(1430, 1)
+		self.ifc = nn.Linear(3, 5)
+		self.ofc = nn.Linear(1540, 1)
 
 		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-5, weight_decay = 1e-8)
 
 
-	def forward(self, x:torch.Tensor):
-		x = x.view(x.size()[0], 715, 1)
-
-		x = torch.cat([x, torch.cat([self.p] * x.size()[0])], dim = 2)
-
+	def forward(self, x:torch.Tensor) -> torch.Tensor:
+		x = self.ifc.forward(x)
 		x_ = x.clone()
 		for i in self.encoders:
 			x = i.forward(x)
@@ -122,7 +115,7 @@ class critic(nn.Module):
 			x_ = i.forward(x_, x)
 		x_ = x_.view(x_.size()[0], -1)
 
-		return self.fc.forward(x_)
+		return self.ofc.forward(x_)
 		
 class actor(nn.Module):
 	def __init__(self, num_encoder:int, num_decoder:int, num_dim:int = None, num_head:int = 8, lr:float = 0.01, noise_std:float = 0.1):
@@ -130,30 +123,28 @@ class actor(nn.Module):
 
 		self.encoders = nn.ModuleList()
 		for _ in range(num_encoder):
-			self.encoders.append(encoder(2, num_dim, num_head))
+			self.encoders.append(encoder(5, num_dim, num_head))
 
 		self.decoders = nn.ModuleList()
 		for _ in range(num_decoder):
-			self.decoders.append(decoder(2, num_dim, num_head))
+			self.decoders.append(decoder(5, num_dim, num_head))
 
-		p = []
-		for i in range(379):
-			p.append(i / 379.0)
-		self.p = torch.FloatTensor(p).view(1, 379, 1).cuda()
 
-		self.fc = nn.Linear(758, 336)
-		self.fc.weight.data = self.fc.weight.data / 32
-		self.fc.bias.data = self.fc.bias.data / 32
+		self.ifc = nn.Linear(3, 5)
+		self.ofc = nn.Linear(860, 272)
+		self.ofc.weight.data = self.ofc.weight.data / 32
+		self.ofc.bias.data = self.ofc.bias.data / 32
 
 		self.opt = optim.AdamW(self.parameters(), lr = lr, eps = 1e-5, weight_decay = 1e-8)
 
 		self.noise_std = noise_std
 
 
-	def forward(self, x:torch.Tensor):
-		x = x.view(x.size()[0], 379, 1)
 
-		x = torch.cat([x, torch.cat([self.p] * x.size()[0])], dim = 2)
+
+	def forward(self, x:torch.Tensor) -> torch.Tensor:
+
+		x = self.ifc.forward(x)
 
 		x_ = x.clone()
 		for i in self.encoders:
@@ -162,7 +153,7 @@ class actor(nn.Module):
 			x_ = i.forward(x_, x)
 		x_ = x_.view(x_.size()[0], -1)
 
-		return self.fc.forward(x_).tanh()
+		return self.ofc.forward(x_).tanh()
 	
 	def explor(self, x:torch.Tensor) -> torch.Tensor:
 		with torch.no_grad():
